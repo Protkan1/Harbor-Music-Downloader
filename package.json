@@ -1,6 +1,6 @@
 {
   "name": "spotdl-ytdlp-gui",
-  "version": "2.9.3",
+  "version": "2.9.4",
   "description": "Harbor: download and play music and video from YouTube, Spotify, SoundCloud and Apple Music",
   "main": "dist/main/main.js",
   "scripts": {
