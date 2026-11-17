@@ -1,7 +1,7 @@
 {
   "name": "spotdl-ytdlp-gui",
-  "version": "1.0.0",
-  "description": "Modern Liquid Glass GUI for spotdl & yt-dlp with iOS 26 aesthetics",
+  "version": "2.9.3",
+  "description": "Harbor: download and play music and video from YouTube, Spotify, SoundCloud and Apple Music",
   "main": "dist/main/main.js",
   "scripts": {
     "build:tsc": "tsc",
@@ -9,25 +9,72 @@
     "build:icon": "electron scripts/build-icon.js",
     "build": "npm run build:tsc && npm run build:renderer",
     "start": "npm run build && electron .",
-    "dev": "node scripts/dev.js"
+    "dev": "node scripts/dev.js",
+    "dist": "npm run build && electron-builder --win nsis --publish never"
   },
   "keywords": [
+    "music-downloader",
+    "video-downloader",
     "spotdl",
     "yt-dlp",
     "electron",
-    "liquid-glass",
-    "gui"
+    "typescript"
   ],
-  "author": "",
+  "author": "Protkan",
   "license": "MIT",
   "devDependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "electron": "^45.0.0",
+    "electron-builder": "26.18.0",
     "esbuild": "^0.28.2",
+    "motion": "^14.14.0",
     "typescript": "^5.7.2"
   },
-  "dependencies": {
-    "motion": "^14.14.0"
+  "homepage": "https://github.com/Protkan1/Harbor-Music-Downloader",
+  "build": {
+    "appId": "io.github.protkan1.harbor",
+    "productName": "Harbor",
+    "copyright": "Copyright © 2026 Protkan",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/**/*.map",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "scripts",
+        "to": "scripts",
+        "filter": [
+          "*.py"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Harbor",
+      "artifactName": "Harbor-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

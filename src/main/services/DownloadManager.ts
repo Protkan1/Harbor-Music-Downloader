@@ -17,7 +17,7 @@ import {
 import { isSpotifyUrl } from '../../shared/urls';
 import { SettingsService } from './SettingsService';
 import { HistoryService } from './HistoryService';
-import { UTF8_ENV, commandSucceeds, killTree, readLines, resolvePython, resolveSpotdl } from './processUtils';
+import { UTF8_ENV, commandSucceeds, killTree, readLines, resolvePython, resolveSpotdl, scriptPath } from './processUtils';
 
 interface Task {
   id: string;
@@ -203,7 +203,7 @@ export class DownloadManager {
     this.emit(task, { status: 'downloading', title: this.metaTitle(task.request) || task.request.url });
 
     // spotdl runs through scripts/spotdl_fast.py when possible (much faster Spotify lookups)
-    const launch = task.tool === 'spotdl' ? await resolveSpotdl(this.scriptPath('spotdl_fast.py')) : { cmd: task.tool, prefix: [] as string[] };
+    const launch = task.tool === 'spotdl' ? await resolveSpotdl(scriptPath('spotdl_fast.py')) : { cmd: task.tool, prefix: [] as string[] };
     if (task.cancelled) {
       this.emit(task, { status: 'cancelled' });
       return;
@@ -571,19 +571,13 @@ export class DownloadManager {
    * Runs scripts/tagger.py. With `infoOnly` the file is only read. Returns the tags, length and
    * cover thumbnail it reports, or null when Python/mutagen is missing or the run failed.
    */
-  /** scripts/<name> next to the app (dist/main/services → ../../../scripts), else from cwd. */
-  private scriptPath(name: string): string {
-    const p = path.resolve(__dirname, '../../../scripts', name);
-    return fs.existsSync(p) ? p : path.resolve(process.cwd(), 'scripts', name);
-  }
-
   public async runTagger(file: string, mode: 'clean' | 'preserve', infoOnly = false): Promise<TaggerInfo | null> {
     const python = await resolvePython();
     if (!python) {
       console.warn('[DownloadManager] Python with mutagen+Pillow not found; skipping tagger');
       return null;
     }
-    const taggerPath = this.scriptPath('tagger.py');
+    const taggerPath = scriptPath('tagger.py');
 
     const args = [...python.prefix, '-I', '-X', 'utf8', taggerPath, file, '--mode', mode, '--cover-out', this.coverPathFor(file)];
     if (infoOnly) args.push('--info-only');

@@ -114,6 +114,20 @@ export function resolvePython(): Promise<PythonCommand | null> {
   return pythonCache;
 }
 
+/**
+ * Path of a bundled Python helper (scripts/<name>). An installed app ships them unpacked in
+ * resources/scripts (Python can't read files inside app.asar); in development they come from
+ * the project's scripts folder.
+ */
+export function scriptPath(name: string): string {
+  const candidates = [
+    process.resourcesPath ? path.join(process.resourcesPath, 'scripts', name) : '',
+    path.resolve(__dirname, '../../../scripts', name),
+    path.resolve(process.cwd(), 'scripts', name),
+  ].filter(Boolean);
+  return candidates.find((p) => fs.existsSync(p)) ?? candidates[candidates.length - 1];
+}
+
 export interface SpotdlCommand {
   cmd: string;
   /** Arguments that go before spotdl's own (the wrapper script) */

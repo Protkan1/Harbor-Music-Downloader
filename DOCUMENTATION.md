@@ -319,6 +319,13 @@ npm run dev
 
 ## 8. 📋 Yapılan İyileştirmeler ve Sürüm Geçmişi (Changelog)
 
+### Sürüm 2.9.4 (2026-11-17) - Kurulum dosyası ve GitHub
+- `npm run dist` → `release/Harbor-Setup-<sürüm>.exe` (electron-builder 26.18.0, NSIS, x64, kullanıcı başına kurulum, klasör seçilebilir, masaüstü + Başlat menüsü kısayolu; kaldırırken kullanıcı verisi silinmez). İmzasız: SmartScreen ilk açılışta uyarır.
+- Paket: `dist/**` (kaynak haritaları `.map` hariç) + `package.json` → `app.asar`; Python scriptleri `extraResources` ile `resources/scripts/` altına (Python asar içinden okuyamaz). `processUtils.scriptPath()` önce `process.resourcesPath/scripts`, sonra proje klasörüne bakar. `motion` esbuild ile paketlendiği için devDependency.
+- Kullanıcı verisi `%APPDATA%\Harbor`; eski `%APPDATA%\spotdl-ytdlp-gui` varsa o kullanılmaya devam eder (`main.ts`, `app.setPath('userData')`). `--user-data-dir` verilirse o geçerli (izole testler).
+- Paketlenmiş uygulama izole veri klasörüyle test edildi: araçların hepsi bulundu, Spotify indirmesi 23 sn, kapak ve etiketler yazıldı.
+- README (İngilizce, ekran görüntüleri `docs/screenshots/`), MIT `LICENSE`. GitHub: `Protkan1/Harbor-Music-Downloader`, kurulum dosyası Releases'te.
+
 ### Sürüm 2.9.3 (2026-11-17) - GitHub öncesi gizlilik temizliği
 - Git geçmişi tek commit'e indirildi (`main` dalı). Eski geçmiş kişisel e-posta adresi ve bir test scriptindeki kullanıcı klasörü yolunu içeriyordu; repodan tamamen silindi (reflog + gc ile doğrulandı: 80 nesnede 0 eşleşme). Yedeği repo dışında `../spotdl_gui_ESKI_GECMIS_YEDEK.bundle` dosyasında — **asla yüklenmemeli.**
 - Repo içi git kimliği `user.email` = GitHub "noreply" adresi `235872478+Protkan1@users.noreply.github.com` (`git config --local`). Global ayardaki kişisel adres bu repoda kullanılmaz; **bu yerel ayar değiştirilmemeli.**

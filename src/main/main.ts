@@ -11,6 +11,16 @@ import { ProbeService } from './services/ProbeService';
 import { LibraryService } from './services/LibraryService';
 import { registerIpcHandlers } from './ipcHandlers';
 
+// Settings, history, library and covers live in %APPDATA%\Harbor. Before the rename they
+// were in %APPDATA%\spotdl-ytdlp-gui; an existing folder there keeps being used so nobody
+// loses their data. Must run before anything reads userData (incl. the single-instance lock).
+// An explicit --user-data-dir (used for isolated test runs) always wins.
+if (!app.commandLine.hasSwitch('user-data-dir')) {
+  const appData = app.getPath('appData');
+  const legacy = path.join(appData, 'spotdl-ytdlp-gui');
+  app.setPath('userData', fs.existsSync(legacy) ? legacy : path.join(appData, 'Harbor'));
+}
+
 let mainWindow: BrowserWindow | null = null;
 // Delay instantiation until app is ready (app.getPath requires app to be ready)
 let settingsService: SettingsService;

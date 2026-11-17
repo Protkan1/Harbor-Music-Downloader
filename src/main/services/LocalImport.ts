@@ -4,7 +4,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { LibraryItem } from '../../shared/types';
-import { UTF8_ENV, readLines, resolvePython } from './processUtils';
+import { UTF8_ENV, readLines, resolvePython, scriptPath } from './processUtils';
 
 export const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.oga', '.webm', '.mp4', '.m4b', '.aiff', '.aif']);
 const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mkv', '.mov']);
@@ -228,8 +228,7 @@ export async function toLibraryItems(
 
   const python = await resolvePython();
   if (python && existing.length) {
-    let script = path.resolve(__dirname, '../../../scripts/scan_media.py');
-    if (!fs.existsSync(script)) script = path.resolve(process.cwd(), 'scripts/scan_media.py');
+    const script = scriptPath('scan_media.py');
     const listFile = path.join(os.tmpdir(), `aura-scan-${Date.now()}.json`);
     fs.writeFileSync(listFile, JSON.stringify(existing.map((e) => e.path)), 'utf-8');
     await new Promise<void>((resolve) => {
