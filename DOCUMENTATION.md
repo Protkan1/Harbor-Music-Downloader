@@ -319,6 +319,15 @@ npm run dev
 
 ## 8. 📋 Yapılan İyileştirmeler ve Sürüm Geçmişi (Changelog)
 
+### Sürüm çıkarma adımları (her yeni sürümde)
+1. `package.json` sürümünü yükselt, DOCUMENTATION.md'ye sürüm notu ekle.
+2. `npm run build:engine` (motor/ffmpeg değiştiyse ya da `vendor/` yoksa), sonra `npm run dist`.
+3. Temiz ortam testi: PATH'te Python/yt-dlp/spotdl/ffmpeg yokken paketlenmiş uygulama ile ilk açılış ekranı + Spotify MP3, YouTube MP3/MP4 indirme.
+4. Gizlilik taraması: depo dosyaları, `app.asar`, `resources/` (kişisel yol, e-posta, ad yok); commit kimliği `235872478+Protkan1@users.noreply.github.com`.
+5. Commit + push, GitHub release (`v<sürüm>`, Türkçe öncelikli not) + `Harbor-Setup-<sürüm>.exe`.
+6. **winget:** `winget/manifests/p/Protkan1/Harbor/<sürüm>/` oluştur (sürüm, URL, `InstallerSha256` = release asset digest, `ReleaseDate`), `winget validate`, kullanıcıya sorup `Protkan1/winget-pkgs` fork'unda yeni dal + microsoft/winget-pkgs'e "Update: Protkan1.Harbor to <sürüm>" PR'ı. CLA bir kez imzalandı (PR #482731), tekrar gerekmez.
+7. İsteğe bağlı: yeni exe'yi Microsoft'a "Incorrectly detected" (SmartScreen) olarak gönder (kullanıcı yapar).
+
 ### Dağıtım notları (2026-11-18)
 - **SmartScreen:** Kurulum dosyası imzasız olduğu için "Windows bilgisayarınızı korudu" uyarısı çıkar. Ücretsiz yollar: Microsoft'a "yanlış tespit" gönderimi (v2.10.0 gönderildi, her sürümde tekrar), winget, ileride SignPath Foundation (ücretsiz açık kaynak imzası; GitHub Actions derlemesi gerektirir).
 - **winget:** `winget/manifests/p/Protkan1/Harbor/<sürüm>/` (şema 1.12.0, `nullsoft`, kullanıcı başına kurulum, moniker `harbor-music`). `winget validate` ile doğrulandı. Yeni sürümde: klasörü kopyala, sürüm/URL/`InstallerSha256` (GitHub release asset digest ile aynı) güncelle, microsoft/winget-pkgs'e PR. Kabul edilince: `winget install Protkan1.Harbor`.
