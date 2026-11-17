@@ -319,6 +319,10 @@ npm run dev
 
 ## 8. 📋 Yapılan İyileştirmeler ve Sürüm Geçmişi (Changelog)
 
+### Dağıtım notları (2026-11-18)
+- **SmartScreen:** Kurulum dosyası imzasız olduğu için "Windows bilgisayarınızı korudu" uyarısı çıkar. Ücretsiz yollar: Microsoft'a "yanlış tespit" gönderimi (v2.10.0 gönderildi, her sürümde tekrar), winget, ileride SignPath Foundation (ücretsiz açık kaynak imzası; GitHub Actions derlemesi gerektirir).
+- **winget:** `winget/manifests/p/Protkan1/Harbor/<sürüm>/` (şema 1.12.0, `nullsoft`, kullanıcı başına kurulum, moniker `harbor-music`). `winget validate` ile doğrulandı. Yeni sürümde: klasörü kopyala, sürüm/URL/`InstallerSha256` (GitHub release asset digest ile aynı) güncelle, microsoft/winget-pkgs'e PR. Kabul edilince: `winget install Protkan1.Harbor`.
+
 ### Sürüm 2.10.0 (2026-11-18) - Kurulumsuz çalışma: araçlar pakette, ilk açılış ekranı
 - **Motor (`engine/`):** `harbor_engine.py`, PyInstaller ile tek klasörlük `harbor-engine.exe`'ye dönüşür (Python 3.12 + yt-dlp + spotDL + mutagen + Pillow + `scripts/` içindeki tagger/scan/spotdl_fast). Alt komutlar: `yt-dlp`, `spotdl` (spotapi yaması ile), `tagger`, `scan`, `selftest`. Spec: `engine/harbor-engine.spec` (`X utf8` seçeneği, dinamik yüklenen paketler için `collect_all`). Paket sürümleri `engine/requirements.lock.txt` dosyasında sabit. ~87 MB.
 - **yt-dlp güncellemesi (paketli mod):** `UpdateService.updateBundled()` en son sürümün resmi saf Python zip'ini (`yt-dlp`) ve `SHA2-256SUMS` dosyasını indirir, SHA-256'yı doğrular, `HARBOR_YTDLP_ZIP` ile önce deneme çalıştırması yapar, sonra `<userData>/tools/yt-dlp.zip` olarak yerine koyar. Motor bu zip'i, PyInstaller'ın dondurulmuş kopyasının önüne koyan bir `meta_path` bulucusuyla içe aktarır (spotDL de aynı yt-dlp'yi kullanır). Eski bir zip ile test edildi.
