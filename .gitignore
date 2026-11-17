@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+scripts/test_screen.png
+temp_*.jpg
+
+# Build output
+release/
+*.bundle

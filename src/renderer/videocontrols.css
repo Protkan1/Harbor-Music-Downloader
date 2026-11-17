@@ -1,0 +1,139 @@
+/* ═════════════════════════════════════════════════════════════════════════
+   Watch page video controls (videocontrols.ts) + subtitle cues
+   Calm, YouTube/Apple-like: a soft gradient under the controls only, auto-hide
+   while playing, no glow.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.watch-screen { position: relative; }
+.watch-screen .liquid-video-element { cursor: pointer; }
+
+.vc {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.vc-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 28px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.35) 55%, transparent);
+  pointer-events: auto;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+.watch-screen.vc-idle .vc-bottom { opacity: 0; transition-duration: 400ms; }
+.watch-screen.vc-idle { cursor: none; }
+.watch-screen.audio-mode .vc-bottom { background: linear-gradient(to top, rgba(0, 0, 0, 0.45), transparent); }
+
+.vc-row { display: flex; align-items: center; gap: 4px; color: #fff; }
+.vc-spacer { flex: 1; }
+.vc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 90ms ease;
+}
+.vc-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.vc-btn:active { transform: scale(0.94); }
+.vc-btn[hidden] { display: none; }
+.vc-text { font-size: 0.82rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.vc-cc.on { box-shadow: inset 0 -2px 0 currentColor; border-radius: 6px 6px 2px 2px; }
+.vc-time {
+  margin-left: 8px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.vc-seek,
+.vc-volume {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 16px;
+  --pb-fill: 0%;
+}
+.vc-seek { width: 100%; }
+.vc-volume { width: 84px; }
+.vc-seek::-webkit-slider-runnable-track,
+.vc-volume::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #fff var(--pb-fill), rgba(255, 255, 255, 0.3) var(--pb-fill));
+  transition: height 120ms ease;
+}
+.vc-seek:hover::-webkit-slider-runnable-track { height: 6px; }
+.vc-seek::-webkit-slider-thumb,
+.vc-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.vc-seek:hover::-webkit-slider-thumb { margin-top: -3.5px; }
+
+.vc-menu {
+  position: absolute;
+  right: 12px;
+  bottom: 64px;
+  width: 240px;
+  max-height: 60%;
+  pointer-events: auto;
+  background: rgba(20, 20, 19, 0.92);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  backdrop-filter: blur(16px);
+}
+.vc-menu .pop-menu-item { color: #fff; }
+.vc-menu .pop-menu-item:hover { background: rgba(255, 255, 255, 0.1); }
+.vc-menu .pop-menu-head,
+.vc-menu .pop-menu-detail { color: rgba(255, 255, 255, 0.6); }
+.vc-check { width: 14px; flex-shrink: 0; font-size: 0.8rem; }
+
+.vc-status {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(20, 20, 19, 0.8);
+  color: #fff;
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+.vc-status[hidden] { display: none; }
+
+/* Subtitles: readable on any picture, raised while the controls show */
+.watch-screen video::cue {
+  font-family: var(--font-main, system-ui), sans-serif;
+  font-size: clamp(15px, 2.2vw, 26px);
+  line-height: 1.35;
+  color: #fff;
+  background: rgba(8, 8, 8, 0.72);
+}
+.watch-screen:fullscreen video::cue { font-size: clamp(20px, 2.6vw, 40px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vc-bottom,
+  .vc-btn { transition: none; }
+}

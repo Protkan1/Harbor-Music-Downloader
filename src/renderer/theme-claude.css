@@ -1,0 +1,1552 @@
+/* ==========================================================================
+   Claude's design — the 4th color theme
+   --------------------------------------------------------------------------
+   A calm, premium "Operate" surface: the tool disappears into the task.
+   Sources (applied, not quoted):
+   - Emil Kowalski / emil-design-eng + apple-design: custom ease-out curves,
+     scale(0.97) press feedback, never scale(0), hover gated to fine pointers,
+     UI motion under 300ms, transitions (interruptible) over keyframes,
+     materialize surfaces (blur + scale), critically damped springs (Motion).
+   - Impeccable (craft-floor, quieter, colorize, typeset): no eyebrow kickers,
+     no gradient text, no glass as decoration, no monospace costume, tinted
+     neutrals, one accent with a role, themed browser surfaces (selection,
+     caret, focus ring, scrollbar), contrast >= 4.5:1 for text.
+   - taste-skill (design-taste-frontend): interface 90-95% neutral, one accent,
+     no tracked capitals, no glow / tilt / blinking, hover in 150ms / out 120ms,
+     press 90ms, no reveal-on-scroll.
+   - Framer Motion (motion): spring-driven selection indicators (motion.ts).
+   Everything is scoped to body[data-color-theme="claude"] (native CSS nesting).
+   ========================================================================== */
+
+body[data-color-theme="claude"] {
+  /* ── Palette: warm graphite (dark) ─────────────────────────────────── */
+  --c-canvas: #1f1e1d;
+  --c-sidebar: #1a1918;
+  --c-surface: #262624;
+  --c-surface-2: #2e2d2a;
+  --c-surface-3: #383733;
+  --c-hairline: rgba(245, 244, 239, 0.08);
+  --c-hairline-strong: rgba(245, 244, 239, 0.14);
+  --c-text: #f5f4ef;
+  --c-text-2: #bdbab0;   /* 8.4:1 on surface */
+  --c-text-3: #908d84;   /* 4.7:1 on surface: meta only */
+  --c-accent: #d97757;   /* Claude clay */
+  --c-accent-ink: #1a1918; /* text on accent: 6.1:1 */
+  --c-accent-soft: rgba(217, 119, 87, 0.14);
+  --c-accent-line: rgba(217, 119, 87, 0.45);
+  --c-success: #8cbf96;
+  --c-warning: #dcae63;
+  --c-danger: #e8836f;
+  --c-shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --c-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --c-scrim: rgba(12, 11, 10, 0.55);
+
+  /* ── Motion tokens (Emil Kowalski / taste-skill) ───────────────────── */
+  --c-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --c-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --c-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --c-t-in: 150ms;
+  --c-t-out: 120ms;
+  --c-t-press: 90ms;
+  --c-t-panel: 220ms;
+
+  /* ── Shape & type ──────────────────────────────────────────────────── */
+  --c-r-sm: 8px;
+  --c-r-md: 12px;
+  --c-r-lg: 16px;
+  --c-font: "Segoe UI Variable Text", "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --c-font-display: "Segoe UI Variable Display", "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --c-font-data: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+
+  /* Map the app's shared tokens onto this palette so every older rule follows */
+  --font-main: var(--c-font);
+  --font-mono: var(--c-font);
+  --accent-cyan: var(--c-accent);
+  --accent-violet: var(--c-accent);
+  --accent-emerald: var(--c-success);
+  --accent-amber: var(--c-warning);
+  --accent-rose: var(--c-danger);
+  --text-primary: var(--c-text);
+  --text-secondary: var(--c-text-2);
+  --text-tertiary: var(--c-text-3);
+  --panel-bg: var(--c-surface);
+  --panel-border: var(--c-hairline);
+  --panel-shadow: none;
+  --panel-inner-shine: 0 0 0 transparent;
+  --input-bg: var(--c-canvas);
+  --input-border: var(--c-hairline-strong);
+  --input-focus: var(--c-accent);
+  --chip-bg: transparent;
+  --chip-border: var(--c-hairline-strong);
+  --chip-hover: var(--c-surface-2);
+  --brand-gradient: var(--c-accent);
+  --brand-glow: none;
+  --cyan-glow: none;
+  --spring-easing: var(--c-ease-out);
+  --smooth-easing: var(--c-ease-out);
+  --glass-blur: 0px;
+
+  /* ── Light: ivory paper ────────────────────────────────────────────── */
+  &[data-theme="light"] {
+    --c-canvas: #faf9f5;
+    --c-sidebar: #f3f1ea;
+    --c-surface: #ffffff;
+    --c-surface-2: #f3f1ea;
+    --c-surface-3: #e9e6dc;
+    --c-hairline: rgba(20, 20, 19, 0.08);
+    --c-hairline-strong: rgba(20, 20, 19, 0.14);
+    --c-text: #141413;
+    --c-text-2: #5c5a53;   /* 6.9:1 */
+    --c-text-3: #6f6c64;   /* 5.2:1 */
+    --c-accent: #bd5b38;   /* 4.8:1 with white text */
+    --c-accent-ink: #ffffff;
+    --c-accent-soft: rgba(189, 91, 56, 0.1);
+    --c-accent-line: rgba(189, 91, 56, 0.4);
+    --c-success: #3f7d4e;
+    --c-warning: #9a6a17;
+    --c-danger: #b8432f;
+    --c-shadow-lg: 0 24px 48px -12px rgba(20, 20, 19, 0.18), 0 2px 6px rgba(20, 20, 19, 0.06);
+    --c-shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.06);
+    --c-scrim: rgba(20, 20, 19, 0.28);
+  }
+
+  background: var(--c-canvas);
+  color: var(--c-text);
+  font-family: var(--c-font);
+  font-feature-settings: "tnum" 0;
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--c-accent);
+  accent-color: var(--c-accent);
+
+  /* ── Browser surfaces (Impeccable craft-floor) ─────────────────────── */
+  ::selection {
+    background: var(--c-accent-soft);
+    color: inherit;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--c-hairline-strong) transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  .url-input:focus-visible {
+    outline: none; /* their wrapper shows focus */
+  }
+  /* Chromium shows focus-visible again after Alt+Tab, even for a button that was clicked.
+     While the last input was a pointer, keep the ring off; Tab brings it back (dom.ts). */
+  &.pointer-input :focus-visible {
+    outline: none;
+  }
+
+  /* ── Quiet: remove ambient light, glows and decoration ─────────────── */
+  .mesh-bg-container,
+  .brand-glow,
+  .hero-shine-line,
+  .input-glow-border,
+  .format-glow,
+  .btn-ingest-glow,
+  .btn-liquid-shine,
+  .modal-prism-orb,
+  .cover-glow,
+  .sidebar-hud-card,
+  .queue-status-indicator,
+  .hero-tag,
+  .player-brand-badge,
+  .audio-visualizer-wave,
+  .task-item::before,
+  .nav-tab-btn.active::before,
+  [data-i18n="exploreChip"] {
+    display: none !important;
+  }
+
+  /* ── Typography (Apple: size-specific tracking, weight builds hierarchy) */
+  h1, h2, h3, h4,
+  .hero-title,
+  .panel-title,
+  .modal-title,
+  .pl-title,
+  .player-title {
+    font-family: var(--c-font-display);
+    text-wrap: balance;
+  }
+  .hero-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    line-height: 1.15;
+    color: var(--c-text);
+  }
+  .panel-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    color: var(--c-text);
+  }
+  .panel-desc,
+  .pref-info p,
+  .modal-desc {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--c-text-2);
+    text-wrap: pretty;
+  }
+  .pref-info h4 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.006em;
+  }
+
+  /* Numbers line up without a monospace costume */
+  .nav-pill,
+  .dep-pill,
+  .badge,
+  .task-bottom,
+  .pref-badge-val,
+  .format-badge-pill,
+  .explore-badge,
+  .explore-rank,
+  .pl-row-index,
+  .pl-row-duration,
+  .modal-hint,
+  .seg-toggle button,
+  .explore-btn,
+  .panel-chip,
+  .brand-version-chip,
+  .update-versions dd {
+    font-family: var(--c-font);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  /* Real data (links, paths) keeps a real monospace */
+  .batch-textarea,
+  .aura-path-input {
+    font-family: var(--c-font-data);
+  }
+
+  /* ── Layout shell ──────────────────────────────────────────────────── */
+  .main-view {
+    padding: 28px 36px;
+    gap: 20px;
+  }
+  .tab-content {
+    gap: 20px;
+  }
+  .tab-content.active {
+    animation: claudeTabIn 200ms var(--c-ease-out);
+  }
+
+  /* Sidebar: a heavier, darker material separates structure (Apple materials) */
+  .sidebar {
+    width: 248px;
+    background: var(--c-sidebar);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-right: 1px solid var(--c-hairline);
+    box-shadow: none;
+    padding: 22px 14px 16px;
+    gap: 22px;
+    transition: none;
+  }
+  .brand-section {
+    padding: 0 6px;
+    gap: 10px;
+  }
+  .brand-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--c-accent);
+    color: var(--c-accent-ink);
+    box-shadow: none;
+  }
+  .brand-svg {
+    width: 18px;
+    height: 18px;
+  }
+  .brand-title {
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: currentColor;
+    color: var(--c-text);
+    font-family: var(--c-font-display);
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
+  .brand-version-chip {
+    background: transparent;
+    border: 1px solid var(--c-hairline-strong);
+    color: var(--c-text-3);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 1px 6px;
+  }
+  .brand-subtitle {
+    color: var(--c-text-3);
+    font-size: 0.75rem;
+    letter-spacing: 0;
+  }
+
+  /* Navigation: the active item is drawn by one sliding indicator (motion.ts) */
+  .nav-menu {
+    position: relative;
+    gap: 2px;
+    margin-top: 0;
+  }
+  .nav-indicator {
+    display: block;
+  }
+  .nav-tab-btn {
+    position: relative;
+    z-index: 1;
+    padding: 9px 12px;
+    border-radius: var(--c-r-sm);
+    border: none;
+    background: transparent;
+    color: var(--c-text-2);
+    font-size: 0.875rem;
+    font-weight: 500;
+    gap: 10px;
+    box-shadow: none;
+    transition: color var(--c-t-out) ease, background-color var(--c-t-out) ease, transform var(--c-t-press) var(--c-ease-out);
+  }
+  .nav-tab-btn.active {
+    background: transparent;
+    color: var(--c-text);
+    border: none;
+    box-shadow: none;
+  }
+  .nav-tab-btn:active {
+    transform: scale(0.98);
+  }
+  .nav-icon-wrapper svg {
+    width: 17px;
+    height: 17px;
+    opacity: 0.85;
+  }
+  .nav-tab-btn.active .nav-icon-wrapper {
+    color: var(--c-accent);
+  }
+  .nav-pill {
+    background: transparent;
+    color: var(--c-text-3);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0;
+  }
+  .nav-tab-btn.active .nav-pill {
+    background: transparent;
+    color: var(--c-text-2);
+  }
+
+  .sidebar-status-box {
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--c-hairline);
+    border-radius: 0;
+    padding: 14px 6px 0;
+  }
+  .status-box-header {
+    color: var(--c-text-3);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    margin-bottom: 8px;
+  }
+  .status-box-header svg {
+    display: none;
+  }
+  .dep-name {
+    font-family: var(--c-font);
+    font-size: 0.8125rem;
+    color: var(--c-text-2);
+  }
+  .dep-pill {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dep-pill::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .dep-pill.online {
+    color: var(--c-success);
+    background: transparent;
+    border: none;
+  }
+  .dep-pill.offline {
+    color: var(--c-danger);
+    background: transparent;
+    border: none;
+  }
+
+  /* ── Surfaces: flat panels, hairline edges, no inner shine ─────────── */
+  .aura-panel,
+  .aura-hero-card {
+    background: var(--c-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid var(--c-hairline);
+    box-shadow: var(--c-shadow-sm);
+    border-radius: var(--c-r-lg);
+    padding: 22px;
+    gap: 18px;
+  }
+  .aura-hero-card {
+    padding: 24px;
+    gap: 18px;
+  }
+  .panel-header-row {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  .panel-title-group {
+    color: var(--c-text-3);
+    gap: 9px;
+  }
+  .panel-title-group svg {
+    width: 16px;
+    height: 16px;
+  }
+  .panel-chip,
+  .themes-panel .panel-chip {
+    background: transparent;
+    border: 1px solid var(--c-hairline-strong);
+    color: var(--c-text-2);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 3px 10px;
+  }
+
+  /* Platform chips: real brand colours, no glow */
+  .p-chip {
+    background: transparent;
+    border: 1px solid var(--c-hairline);
+    color: var(--c-text-2);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  .p-chip .dot {
+    box-shadow: none !important;
+  }
+
+  /* ── URL input ─────────────────────────────────────────────────────── */
+  .url-input-wrapper {
+    background: var(--c-canvas);
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-md);
+    box-shadow: none;
+    padding: 5px 6px 5px 14px;
+    transition: border-color var(--c-t-in) ease, box-shadow var(--c-t-in) ease;
+  }
+  .url-input-wrapper:focus-within {
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 3px var(--c-accent-soft);
+    transform: none;
+  }
+  .url-input {
+    font-size: 0.9375rem;
+    font-weight: 400;
+  }
+  .url-input::placeholder {
+    color: var(--c-text-3);
+  }
+
+  /* ── Buttons: one system. Press = scale(0.97), hover = tone step only ─ */
+  .btn-paste,
+  .btn-browse,
+  .btn-task-action,
+  .btn-player-ingest,
+  .modal-btn-secondary,
+  .modal-btn-ghost,
+  .explore-chip,
+  .explore-btn,
+  .history-btn,
+  .player-icon-btn,
+  .btn-delete {
+    background: transparent;
+    border: 1px solid var(--c-hairline-strong);
+    color: var(--c-text);
+    box-shadow: none;
+    border-radius: var(--c-r-sm);
+    font-weight: 500;
+    transition:
+      background-color var(--c-t-out) ease,
+      border-color var(--c-t-out) ease,
+      color var(--c-t-out) ease,
+      transform var(--c-t-press) var(--c-ease-out);
+  }
+  .btn-paste {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 0.8125rem;
+    border-radius: var(--c-r-sm);
+  }
+  .btn-browse {
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 0.8125rem;
+  }
+  .btn-task-action {
+    padding: 5px 12px;
+    font-size: 0.8125rem;
+  }
+  .btn-task-action.completed {
+    background: transparent;
+    border: 1px solid var(--c-hairline-strong);
+    box-shadow: none;
+    color: var(--c-text);
+  }
+  .btn-delete {
+    color: var(--c-text-3);
+  }
+  .player-icon-btn {
+    border-radius: 50%;
+    color: var(--c-text-2);
+  }
+
+  /* The two hero actions: one filled primary (the accent's main role), one quiet secondary */
+  .hero-actions-deck .btn-ingest,
+  .hero-actions-deck .btn-stream-live,
+  .modal-btn-primary,
+  .modal-btn-danger {
+    height: 44px;
+    min-height: 44px;
+    border-radius: var(--c-r-md);
+    font-family: var(--c-font);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.006em;
+    box-shadow: none;
+    backdrop-filter: none;
+    filter: none;
+    transition:
+      background-color var(--c-t-out) ease,
+      border-color var(--c-t-out) ease,
+      transform var(--c-t-press) var(--c-ease-out);
+  }
+  .hero-actions-deck .btn-ingest,
+  .modal-btn-primary {
+    background: var(--c-accent);
+    border: 1px solid transparent;
+    color: var(--c-accent-ink);
+  }
+  .hero-actions-deck .btn-stream-live {
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-hairline-strong);
+    color: var(--c-text);
+  }
+  .modal-btn-danger {
+    background: var(--c-danger);
+    border: 1px solid transparent;
+    color: var(--c-accent-ink);
+  }
+  .modal-btn-primary.confirm {
+    background: var(--c-warning);
+    color: var(--c-accent-ink);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-paste:hover,
+    .btn-browse:hover,
+    .btn-task-action:hover,
+    .btn-player-ingest:hover,
+    .modal-btn-secondary:hover,
+    .modal-btn-ghost:hover,
+    .explore-chip:hover,
+    .explore-btn:hover:not(:disabled),
+    .history-btn:hover:not(:disabled),
+    .player-icon-btn:hover {
+      background: var(--c-surface-2);
+      border-color: var(--c-hairline-strong);
+      color: var(--c-text);
+      transform: none;
+      box-shadow: none;
+      transition-duration: var(--c-t-in);
+    }
+    .btn-delete:hover,
+    .history-btn.danger:hover:not(:disabled),
+    .player-icon-btn.close:hover {
+      background: color-mix(in srgb, var(--c-danger) 12%, transparent);
+      border-color: color-mix(in srgb, var(--c-danger) 40%, transparent);
+      color: var(--c-danger);
+      transform: none;
+      box-shadow: none;
+    }
+    .hero-actions-deck .btn-ingest:hover,
+    .modal-btn-primary:hover:not(:disabled),
+    .modal-btn-danger:hover {
+      background: color-mix(in srgb, var(--c-accent) 88%, var(--c-text));
+      transform: none;
+      box-shadow: none;
+      filter: none;
+    }
+    .hero-actions-deck .btn-stream-live:hover {
+      background: var(--c-surface-3);
+      border-color: var(--c-hairline-strong);
+      transform: none;
+      box-shadow: none;
+    }
+    .nav-tab-btn:hover {
+      background: transparent;
+      color: var(--c-text);
+      transform: none;
+    }
+  }
+
+  /* Press feedback: instant, on pointer-down (Apple §1, Emil "buttons must feel responsive") */
+  .btn-paste:active,
+  .btn-browse:active,
+  .btn-task-action:active,
+  .btn-player-ingest:active,
+  .modal-btn-secondary:active,
+  .modal-btn-ghost:active,
+  .explore-chip:active,
+  .explore-btn:active:not(:disabled),
+  .history-btn:active:not(:disabled),
+  .player-icon-btn:active,
+  .btn-delete:active,
+  .hero-actions-deck .btn-ingest:active,
+  .hero-actions-deck .btn-stream-live:active,
+  .modal-btn-primary:active:not(:disabled),
+  .modal-btn-danger:active,
+  .seg-toggle button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* ── Format choice: a selectable list, not glowing tiles ───────────── */
+  /* Format choice gets its own row; the two actions close the card like a dialog footer */
+  .hero-controls-row {
+    gap: 14px;
+  }
+  .format-deck {
+    flex: 1 1 100%;
+    gap: 10px;
+  }
+  .hero-actions-deck {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .hero-actions-deck .btn-ingest,
+  .hero-actions-deck .btn-stream-live {
+    flex: 0 0 auto;
+    min-width: 168px;
+    padding: 0 18px;
+  }
+  .format-card {
+    background: transparent;
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-md);
+    padding: 10px 12px;
+    box-shadow: none;
+    transition: border-color var(--c-t-out) ease, background-color var(--c-t-out) ease, transform var(--c-t-press) var(--c-ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .format-card:hover {
+      background: var(--c-surface-2);
+      border-color: var(--c-hairline-strong);
+      transform: none;
+    }
+  }
+  .format-card:active {
+    transform: scale(0.98);
+  }
+  .format-card.selected {
+    background: var(--c-accent-soft);
+    border-color: var(--c-accent-line);
+    box-shadow: none;
+    transform: none;
+  }
+  .format-icon-box,
+  .format-icon-box.audio,
+  .format-icon-box.video {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--c-surface-2);
+    border: none;
+    color: var(--c-text-2);
+    box-shadow: none;
+  }
+  .format-card.selected .format-icon-box {
+    background: var(--c-accent);
+    color: var(--c-accent-ink);
+    box-shadow: none;
+  }
+  .format-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .format-badge-pill,
+  .format-card.selected .format-badge-pill {
+    background: transparent;
+    border: 1px solid var(--c-hairline-strong);
+    color: var(--c-text-3);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0 5px;
+  }
+  .format-sub {
+    font-size: 0.75rem;
+    color: var(--c-text-3);
+  }
+
+  /* ── Download queue ────────────────────────────────────────────────── */
+  .downloads-list {
+    gap: 8px;
+  }
+  .task-item {
+    background: transparent;
+    border: 1px solid var(--c-hairline);
+    border-radius: var(--c-r-md);
+    padding: 14px 16px;
+    gap: 10px;
+    box-shadow: none;
+    transition: background-color var(--c-t-out) ease, border-color var(--c-t-out) ease, opacity 200ms ease, transform 200ms var(--c-ease-out);
+    /* new cards arrive from where they are going to be */
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .task-item:hover {
+      background: var(--c-canvas);
+      border-color: var(--c-hairline-strong);
+      transform: none;
+      box-shadow: none;
+    }
+  }
+  .task-item.task-removing {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition-duration: 160ms;
+  }
+  .task-icon-pill {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--c-surface-2);
+    color: var(--c-text-2);
+  }
+  .task-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .task-bottom {
+    font-size: 0.8125rem;
+    color: var(--c-text-3);
+  }
+  .task-bottom span[style] {
+    color: var(--c-text-2) !important; /* the percentage: no accent shouting */
+    font-weight: 600 !important;
+  }
+  .task-progress-bar-container {
+    height: 4px;
+    background: var(--c-surface-3);
+    border-radius: 2px;
+    box-shadow: none;
+  }
+  .task-progress-fill {
+    background: var(--c-accent);
+    border-radius: 2px;
+    box-shadow: none;
+    transition: width 300ms var(--c-ease-out);
+  }
+  .task-item:has(.badge.completed) .task-progress-fill {
+    background: var(--c-success);
+  }
+  .task-item:has(.badge.error) .task-progress-fill,
+  .task-item:has(.badge.cancelled) .task-progress-fill {
+    background: var(--c-text-3);
+  }
+
+  /* Status: a coloured dot + sentence-case word, no filled caps pills */
+  .badge,
+  .badge.queued,
+  .badge.downloading,
+  .badge.converting,
+  .badge.completed,
+  .badge.error,
+  .badge.cancelled {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-2);
+    text-decoration: none;
+  }
+  .badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--c-text-3);
+  }
+  .badge.downloading::before,
+  .badge.converting::before {
+    background: var(--c-accent);
+  }
+  .badge.completed::before {
+    background: var(--c-success);
+  }
+  .badge.error {
+    color: var(--c-danger);
+  }
+  .badge.error::before {
+    background: var(--c-danger);
+  }
+  .task-note {
+    color: var(--c-danger);
+    font-size: 0.8125rem;
+  }
+  .task-note.warning {
+    color: var(--c-warning);
+  }
+
+  /* Empty states */
+  .empty-state h4 {
+    font-family: var(--c-font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .empty-state p {
+    color: var(--c-text-3);
+  }
+  .empty-icon-shield {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--c-r-md);
+    background: var(--c-surface-2);
+    border: none;
+  }
+  .empty-icon-shield svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* ── Settings ──────────────────────────────────────────────────────── */
+  .settings-grid {
+    gap: 0;
+    border: 1px solid var(--c-hairline);
+    border-radius: var(--c-r-md);
+    overflow: hidden;
+  }
+  /* Grouped rows like a system settings list: one container, hairlines between */
+  .pref-card,
+  .pref-card.vertical {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 14px 16px;
+    transition: none;
+  }
+  .pref-card + .pref-card {
+    border-top: 1px solid var(--c-hairline);
+  }
+  .pref-card:hover {
+    background: transparent;
+    border-color: transparent;
+  }
+  .pref-icon {
+    display: none;
+  }
+  .pref-badge-val {
+    background: transparent;
+    border: none;
+    color: var(--c-text-2);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+  .aura-select {
+    background: var(--c-canvas);
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-sm);
+    padding: 7px 12px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+  .aura-path-input {
+    background: var(--c-canvas);
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-sm);
+    font-size: 0.75rem;
+  }
+
+  /* Switch: a calm Apple-like toggle, no glow, no overshoot */
+  .aura-switch {
+    width: 42px;
+    height: 24px;
+  }
+  .aura-toggle-slider {
+    background: var(--c-surface-3);
+    box-shadow: none;
+    transition: background-color 200ms ease;
+  }
+  .aura-toggle-slider:before {
+    width: 20px;
+    height: 20px;
+    left: 2px;
+    bottom: 2px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: transform 200ms var(--c-ease-out);
+  }
+  input:checked + .aura-toggle-slider {
+    background: var(--c-accent);
+    box-shadow: none;
+  }
+  input:checked + .aura-toggle-slider:before {
+    transform: translateX(18px);
+  }
+
+  /* Elastic slider keeps its rubber-band physics (Apple §9), drawn quietly */
+  .elastic-track {
+    height: 4px;
+    background: var(--c-surface-3);
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .elastic-fill {
+    background: var(--c-accent);
+    box-shadow: none;
+  }
+  .elastic-thumb {
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  }
+  .playground-wrapper {
+    background: transparent;
+    border: 1px solid var(--c-hairline);
+    border-radius: var(--c-r-md);
+  }
+
+  /* Theme cards */
+  .theme-card {
+    background: transparent;
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-lg);
+    box-shadow: none;
+    transition: border-color var(--c-t-out) ease, transform var(--c-t-press) var(--c-ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .theme-card:hover {
+      transform: none;
+      background: transparent;
+      border-color: var(--c-text-3);
+      box-shadow: none;
+    }
+  }
+  .theme-card:active {
+    transform: scale(0.98);
+  }
+  .theme-card.active,
+  .theme-card.active:hover {
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 1px var(--c-accent);
+  }
+  .theme-card-preview {
+    border-radius: calc(var(--c-r-lg) - 1px) calc(var(--c-r-lg) - 1px) 0 0;
+  }
+  .theme-card-preview .tcp-orb {
+    animation: none;
+  }
+  .theme-card-name {
+    font-family: var(--c-font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .theme-card-desc {
+    color: var(--c-text-3);
+  }
+  .theme-active-check {
+    background: var(--c-accent);
+    color: var(--c-accent-ink);
+    transform: scale(0.9);
+    transition: opacity 150ms ease, transform 200ms var(--c-ease-out);
+  }
+  .theme-card.active .theme-active-check {
+    transform: scale(1);
+  }
+
+  /* Updates */
+  .update-state[data-tone="ok"] { color: var(--c-success); }
+  .update-state[data-tone="warn"] { color: var(--c-warning); }
+  .update-state[data-tone="bad"] { color: var(--c-danger); }
+
+  /* ── Dialogs: materialize (blur + scale + fade), exit faster than enter */
+  .aura-modal-overlay,
+  .liquid-player-overlay {
+    display: flex;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--c-scrim);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: opacity 160ms ease, visibility 0s linear 160ms;
+  }
+  .aura-modal-overlay.active,
+  .liquid-player-overlay.active {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 220ms ease, visibility 0s;
+  }
+  .aura-modal-card,
+  .liquid-player-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-hairline-strong);
+    box-shadow: var(--c-shadow-lg);
+    backdrop-filter: none;
+    border-radius: 18px;
+    transform: scale(0.96);
+    filter: blur(4px);
+    opacity: 0;
+    transition: transform 160ms var(--c-ease-out), filter 160ms ease, opacity 160ms ease;
+  }
+  .aura-modal-overlay.active .aura-modal-card,
+  .liquid-player-overlay.active .liquid-player-card {
+    transform: scale(1);
+    filter: blur(0);
+    opacity: 1;
+    transition: transform 280ms var(--c-ease-out), filter 220ms ease, opacity 200ms ease;
+  }
+  .aura-modal-card {
+    padding: 26px 24px 22px;
+  }
+  .modal-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.014em;
+  }
+  .modal-icon-badge {
+    background: color-mix(in srgb, var(--c-danger) 12%, transparent);
+    border: none;
+    color: var(--c-danger);
+    box-shadow: none;
+  }
+  .modal-actions-deck {
+    gap: 8px;
+  }
+  .modal-btn-danger,
+  .modal-btn-secondary,
+  .modal-btn-ghost {
+    height: 42px;
+    padding: 0 16px;
+    border-radius: var(--c-r-md);
+    font-size: 0.875rem;
+  }
+  .modal-btn-ghost {
+    border-color: transparent;
+    color: var(--c-text-2);
+  }
+
+  /* Player: the media is the hero; chrome recedes */
+  .player-top-bar {
+    background: transparent;
+    border-bottom: 1px solid var(--c-hairline);
+    padding: 12px 16px;
+    justify-content: flex-end;
+  }
+  .player-quality-select {
+    background: var(--c-canvas);
+    border: 1px solid var(--c-hairline-strong);
+    color: var(--c-text);
+    border-radius: var(--c-r-sm);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+  .player-audio-view {
+    background: var(--c-canvas);
+  }
+  .audio-cover-art {
+    box-shadow: var(--c-shadow-lg);
+  }
+  .player-footer-info {
+    background: transparent;
+    border-top: 1px solid var(--c-hairline);
+  }
+  .player-title {
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    color: var(--c-text);
+  }
+  .player-author {
+    color: var(--c-text-3);
+  }
+  .btn-player-ingest {
+    color: var(--c-text);
+  }
+  .player-loading-spinner {
+    background: var(--c-canvas);
+  }
+  .liquid-spinner-ring {
+    border-color: var(--c-hairline-strong);
+    border-top-color: var(--c-accent);
+    box-shadow: none;
+    animation-duration: 0.7s; /* a faster spinner reads as a faster load */
+  }
+  .loading-text {
+    color: var(--c-text-3);
+    font-family: var(--c-font);
+    letter-spacing: 0;
+  }
+
+  /* ── Explore & history ─────────────────────────────────────────────── */
+  .explore-search-input {
+    background: var(--c-canvas);
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-md);
+    padding: 10px 14px;
+    font-size: 0.9375rem;
+  }
+  .explore-search-input:focus {
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 3px var(--c-accent-soft);
+  }
+  .explore-chip {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    color: var(--c-text-2);
+  }
+  .explore-chip.active {
+    background: var(--c-text);
+    border-color: var(--c-text);
+    color: var(--c-canvas);
+  }
+  .explore-heading {
+    font-family: var(--c-font-display);
+    font-weight: 600;
+    letter-spacing: -0.012em;
+  }
+  .explore-grid {
+    gap: 20px 16px;
+  }
+  .explore-card {
+    padding: 0;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    transition: none;
+  }
+  .explore-card:hover {
+    transform: none;
+    background: transparent;
+  }
+  .explore-thumb {
+    border-radius: 10px;
+    background: var(--c-surface-2);
+  }
+  /* photo zooms inside its frame: 1.03, 600ms in / 400ms out (taste-skill) */
+  .explore-thumb img {
+    transition: transform 400ms var(--c-ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .explore-card:hover .explore-thumb img {
+      transform: scale(1.03);
+      transition-duration: 600ms;
+    }
+  }
+  .explore-play-overlay {
+    background: rgba(0, 0, 0, 0.28);
+    transition: opacity var(--c-t-in) ease;
+  }
+  .explore-rank,
+  .explore-badge {
+    background: rgba(20, 20, 19, 0.72);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+  .explore-rank {
+    background: rgba(20, 20, 19, 0.72);
+  }
+  .explore-badge.live {
+    background: var(--c-danger);
+  }
+  .explore-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: -0.006em;
+  }
+  .explore-sub {
+    font-size: 0.75rem;
+    color: var(--c-text-3);
+  }
+  .explore-btn {
+    height: 30px;
+    font-size: 0.75rem;
+  }
+  .explore-btn.play {
+    color: var(--c-accent);
+  }
+  .explore-card.skeleton .explore-thumb,
+  .skeleton-line {
+    background: var(--c-surface-2);
+    animation: claudePulse 1.6s ease-in-out infinite;
+  }
+
+  .history-list {
+    gap: 0;
+  }
+  .history-row {
+    background: transparent;
+    border: none;
+    border-radius: var(--c-r-sm);
+    padding: 8px;
+    transition: background-color var(--c-t-out) ease, opacity 200ms ease, transform 200ms var(--c-ease-out);
+  }
+  .history-row + .history-row {
+    box-shadow: 0 -1px 0 var(--c-hairline);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .history-row:hover {
+      background: var(--c-canvas);
+      border-color: transparent;
+      transition-duration: var(--c-t-in);
+    }
+  }
+  .history-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    background: var(--c-surface-2);
+    color: var(--c-text-3);
+  }
+  .history-thumb.mp4 {
+    width: 84px;
+    height: 48px;
+  }
+  .history-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  .history-meta {
+    color: var(--c-text-3);
+  }
+  .history-missing {
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--c-warning) 45%, transparent);
+    color: var(--c-warning);
+    font-family: var(--c-font);
+    font-weight: 500;
+  }
+  .history-btn {
+    width: 32px;
+    height: 32px;
+    border-color: transparent;
+    color: var(--c-text-3);
+  }
+  /* Actions recede until the row is in use */
+  @media (hover: hover) and (pointer: fine) {
+    .history-actions {
+      opacity: 0;
+      transition: opacity var(--c-t-out) ease;
+    }
+    .history-row:hover .history-actions,
+    .history-row:focus-within .history-actions {
+      opacity: 1;
+      transition-duration: var(--c-t-in);
+    }
+  }
+
+  /* Segmented controls: a sliding thumb (motion.ts) instead of a re-painted button */
+  .seg-toggle {
+    position: relative;
+    background: var(--c-surface-2);
+    border: none;
+    border-radius: 9px;
+    padding: 2px;
+  }
+  .seg-toggle button {
+    position: relative;
+    z-index: 1;
+    color: var(--c-text-2);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 7px;
+    transition: color var(--c-t-out) ease, transform var(--c-t-press) var(--c-ease-out);
+  }
+  .seg-toggle button.active {
+    background: transparent;
+    color: var(--c-text);
+    box-shadow: none;
+  }
+  .seg-thumb {
+    display: block;
+    background: var(--c-surface);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 0 0 0.5px var(--c-hairline-strong);
+    border-radius: 7px;
+  }
+
+  /* Wide dialogs */
+  .aura-modal-card.wide {
+    padding: 22px 22px 18px;
+  }
+  .batch-textarea {
+    background: var(--c-canvas);
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-md);
+    font-size: 0.8125rem;
+  }
+  .batch-textarea:focus {
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 3px var(--c-accent-soft);
+  }
+  .pl-cover {
+    border-radius: 10px;
+    box-shadow: var(--c-shadow-sm);
+  }
+  .pl-kind {
+    color: var(--c-text-3);
+    font-family: var(--c-font);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: lowercase;
+  }
+  .pl-kind::first-letter {
+    text-transform: uppercase;
+  }
+  .pl-title {
+    font-weight: 650;
+    letter-spacing: -0.018em;
+  }
+  .pl-items {
+    background: transparent;
+    border: 1px solid var(--c-hairline);
+    border-radius: var(--c-r-md);
+  }
+  .pl-row {
+    border-radius: 6px;
+  }
+  .pl-row:hover {
+    background: var(--c-surface-2);
+  }
+  .pl-note,
+  .list-warn {
+    color: var(--c-text-2);
+  }
+  .list-warn {
+    background: color-mix(in srgb, var(--c-warning) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-warning) 26%, transparent);
+  }
+  .list-warn.emphasis {
+    border-color: var(--c-warning);
+    color: var(--c-text);
+  }
+
+  /* Toasts: Sonner's cohesive 400ms ease, same direction in and out */
+  .aura-toast {
+    background: var(--c-surface);
+    color: var(--c-text);
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: var(--c-r-md);
+    box-shadow: var(--c-shadow-lg);
+    font-weight: 500;
+    transform: translateY(12px);
+    transition: transform 400ms ease, opacity 400ms ease;
+  }
+  .aura-toast.visible {
+    transform: translateY(0);
+  }
+  .aura-toast-action {
+    background: transparent;
+    color: var(--c-accent);
+    border: 1px solid var(--c-hairline-strong);
+    border-radius: 7px;
+  }
+
+  /* ── Accessibility preferences ─────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-property: opacity, color, background-color, border-color !important;
+      animation: none !important;
+    }
+    .aura-modal-card,
+    .liquid-player-card,
+    .aura-toast,
+    .task-item {
+      transform: none !important;
+      filter: none !important;
+    }
+    .tab-content.active {
+      animation: claudeFade 160ms ease !important;
+    }
+  }
+  @media (prefers-contrast: more) {
+    --c-hairline: rgba(245, 244, 239, 0.3);
+    --c-hairline-strong: rgba(245, 244, 239, 0.5);
+    --c-text-3: var(--c-text-2);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .aura-modal-overlay,
+    .liquid-player-overlay {
+      backdrop-filter: none;
+      background: var(--c-canvas);
+    }
+  }
+}
+
+/* Indicators exist in the DOM for every theme but only this one shows them */
+.nav-indicator,
+.seg-thumb {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+body[data-color-theme="claude"] .nav-indicator {
+  display: block;
+  background: var(--c-surface-2);
+  border-radius: var(--c-r-sm);
+}
+body[data-color-theme="claude"][data-theme="light"] .nav-indicator {
+  background: var(--c-surface-3);
+}
+
+/* Theme-card preview for Claude's design (shown in every theme) */
+.theme-card-preview.claude-preview {
+  display: flex;
+  background: #1f1e1d;
+  gap: 0;
+}
+.claude-preview .cp-sidebar {
+  width: 30%;
+  background: #1a1918;
+  border-right: 1px solid rgba(245, 244, 239, 0.08);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.claude-preview .cp-mark {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #d97757;
+  margin-bottom: 4px;
+}
+.claude-preview .cp-nav {
+  height: 9px;
+  border-radius: 3px;
+  background: rgba(245, 244, 239, 0.12);
+  width: 80%;
+}
+.claude-preview .cp-nav.is-active {
+  background: #2e2d2a;
+  box-shadow: inset 0 0 0 1px rgba(245, 244, 239, 0.06);
+  width: 100%;
+}
+.claude-preview .cp-main {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.claude-preview .cp-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 4px 0 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(245, 244, 239, 0.14);
+}
+.claude-preview .cp-input .cp-line {
+  flex: 1;
+}
+.claude-preview .cp-button {
+  width: 22px;
+  height: 12px;
+  border-radius: 3px;
+  background: #d97757;
+}
+.claude-preview .cp-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(245, 244, 239, 0.08);
+}
+.claude-preview .cp-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: #2e2d2a;
+  flex-shrink: 0;
+}
+.claude-preview .cp-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.claude-preview .cp-line {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(245, 244, 239, 0.45);
+  width: 70%;
+}
+.claude-preview .cp-line.short { width: 45%; }
+.claude-preview .cp-line.faint { width: 60%; background: rgba(245, 244, 239, 0.18); }
+.claude-preview .cp-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: #383733;
+  overflow: hidden;
+}
+.claude-preview .cp-progress span {
+  display: block;
+  width: 62%;
+  height: 100%;
+  background: #d97757;
+}
+
+@keyframes claudeTabIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes claudeFade {
+  from { opacity: 0; }
+}
+@keyframes claudePulse {
+  50% { opacity: 0.55; }
+}

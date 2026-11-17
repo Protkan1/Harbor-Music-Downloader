@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Clay, with a barely-there top light so it doesn't look flat at large sizes -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e0805f"/>
+      <stop offset="1" stop-color="#cf6c4c"/>
+    </linearGradient>
+  </defs>
+  <rect x="48" y="48" width="928" height="928" rx="208" fill="url(#bg)"/>
+  <!-- Anchor (same drawing as the sidebar logo, 24-unit grid scaled up) -->
+  <g transform="translate(512 512) scale(26) translate(-12 -12.5)" fill="none" stroke="#ffffff"
+     stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="5" r="3"/>
+    <path d="M12 22V8"/>
+    <path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
+  </g>
+</svg>

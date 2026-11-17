@@ -1,0 +1,168 @@
+/* ==========================================================================
+   Motion layer (loaded last). See transitions.ts for the JS side.
+   Enter ~300 ms on a strong ease-out, exit ~140 ms, nothing from scale(0),
+   reduced motion turns everything into plain swaps.
+   ========================================================================== */
+:root {
+  --m-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --m-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── Tab changes (View Transitions) ───────────────────────────────────────
+   Only the page area takes part; the sidebar and the player bar stay still. */
+html.vt {
+  .main-view { view-transition-name: main-view; }
+  .player-bar { view-transition-name: player-bar; }
+
+  /* The CSS keyframe entrance would run twice under a view transition */
+  .tab-content.active,
+  body[data-color-theme="claude"] .tab-content.active { animation: none; }
+}
+
+/* Clicks during a transition reach the live page underneath, so fast navigation never stalls */
+::view-transition { pointer-events: none; }
+
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(player-bar),
+::view-transition-old(player-bar),
+::view-transition-new(player-bar) {
+  animation: none;
+}
+::view-transition-group(main-view) { animation-duration: 0s; }
+
+::view-transition-old(main-view) {
+  animation: vt-out 140ms ease-in both;
+}
+::view-transition-new(main-view) {
+  animation: vt-in 320ms var(--m-ease-out) both;
+}
+html[data-vt="forward"]::view-transition-new(main-view) { animation-name: vt-in-up; }
+html[data-vt="back"]::view-transition-new(main-view) { animation-name: vt-in-down; }
+html[data-vt="forward"]::view-transition-old(main-view) { animation-name: vt-out-up; }
+html[data-vt="back"]::view-transition-old(main-view) { animation-name: vt-out-down; }
+
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-out-up { to { opacity: 0; transform: translateY(-6px); filter: blur(2px); } }
+@keyframes vt-out-down { to { opacity: 0; transform: translateY(6px); filter: blur(2px); } }
+@keyframes vt-in { from { opacity: 0; } }
+@keyframes vt-in-up { from { opacity: 0; transform: translateY(14px); } }
+@keyframes vt-in-down { from { opacity: 0; transform: translateY(-14px); } }
+
+/* ── Thumbnail → player (shared element) ── */
+::view-transition-group(hero-media) {
+  animation-duration: 440ms;
+  animation-timing-function: var(--m-ease-drawer);
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 2;
+}
+::view-transition-old(hero-media),
+::view-transition-new(hero-media) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 440ms;
+  animation-timing-function: var(--m-ease-drawer);
+}
+/* Within the hero morph the page itself just dissolves underneath */
+html[data-vt="morph"]::view-transition-new(main-view) { animation: vt-in 280ms var(--m-ease-out) both; }
+html[data-vt="morph"]::view-transition-old(main-view) { animation: vt-out 160ms ease-in both; }
+
+/* While a stream resolves, the clicked thumbnail (the video's poster) stays visible under a
+   light veil instead of a black box, so the morph lands on the same picture */
+body .watch-screen:has(> video[poster]) .player-loading-spinner {
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(3px);
+  .loading-text { color: rgba(255, 255, 255, 0.85); }
+}
+
+/* ── Theme change: a calm crossfade of the whole window ── */
+html[data-vt="theme"] {
+  .main-view,
+  .player-bar { view-transition-name: none; }
+  &::view-transition-old(root) { animation: vt-out 380ms ease both; }
+  &::view-transition-new(root) { animation: vt-in 380ms ease both; }
+}
+
+/* ── Images fade in when they arrive instead of popping ── */
+.explore-thumb img,
+.history-thumb img,
+.lp-media img,
+.watch-rel-thumb img,
+.lib-cover img,
+.lib-track-thumb img,
+.pb-cover img {
+  opacity: 0;
+  transition: opacity 320ms var(--m-ease-out);
+}
+.explore-thumb img.is-loaded,
+.history-thumb img.is-loaded,
+.lp-media img.is-loaded,
+.watch-rel-thumb img.is-loaded,
+.lib-cover img.is-loaded,
+.lib-track-thumb img.is-loaded,
+.pb-cover img.is-loaded {
+  opacity: 1;
+}
+/* Explore keeps its hover zoom transition alongside the fade */
+.explore-thumb img { transition: opacity 320ms var(--m-ease-out), transform 400ms var(--m-ease-out); }
+
+/* ── Player bar slides up the first time it appears ── */
+.player-bar {
+  transition:
+    transform 420ms var(--m-ease-drawer),
+    opacity 300ms var(--m-ease-out),
+    display 420ms allow-discrete;
+  @starting-style {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+.player-bar[hidden] {
+  transform: translateY(100%);
+  opacity: 0;
+  transition-duration: 220ms;
+}
+
+/* ── Menus and the queue grow from where they open ── */
+.pop-menu,
+.pb-queue {
+  transition:
+    opacity 180ms var(--m-ease-out),
+    transform 220ms var(--m-ease-out),
+    display 220ms allow-discrete,
+    overlay 220ms allow-discrete;
+  @starting-style {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+.pop-menu { transform-origin: top center; }
+.pb-queue { transform-origin: bottom right; }
+.pop-menu[hidden],
+.pb-queue[hidden] {
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  transition-duration: 120ms;
+}
+
+/* ── Press feedback: buttons give a little under the finger ── */
+/* :where() keeps this at zero specificity, so any button that already moves keeps its own transform */
+:where(button:not(:disabled)):active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
+  .player-bar,
+  .pop-menu,
+  .pb-queue,
+  .explore-thumb img,
+  .history-thumb img,
+  .lp-media img,
+  .watch-rel-thumb img,
+  .lib-cover img,
+  .lib-track-thumb img,
+  .pb-cover img { transition: none; }
+  :where(button:not(:disabled)):active { transform: none; }
+}
