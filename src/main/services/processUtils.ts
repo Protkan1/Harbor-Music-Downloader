@@ -3,6 +3,7 @@ import { StringDecoder } from 'string_decoder';
 import { Readable } from 'stream';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ytdlpCommand } from './tools';
 
 /** Env for Python-based CLIs (yt-dlp, spotdl, tagger) so they emit UTF-8 on Windows. */
 export const UTF8_ENV: NodeJS.ProcessEnv = {
@@ -188,7 +189,8 @@ export function runYtDlpJson(args: string[], timeoutMs = 90000): Promise<{ json:
   return new Promise((resolve) => {
     let proc: ChildProcess;
     try {
-      proc = spawn('yt-dlp', args, { shell: false, windowsHide: true, env: UTF8_ENV });
+      const yt = ytdlpCommand();
+      proc = spawn(yt.cmd, [...yt.prefix, ...args], { shell: false, windowsHide: true, env: UTF8_ENV });
     } catch (err: any) {
       resolve({ json: null, error: err?.message });
       return;

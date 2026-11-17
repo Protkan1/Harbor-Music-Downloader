@@ -828,3 +828,57 @@ button:disabled {
   transform: scale(0.85) translateY(-10px);
   opacity: 0;
 }
+
+/* ── First-run setup (setup.ts) ── */
+.setup-overlay { z-index: 10050; }
+.setup-overlay.closing { opacity: 0; transition: opacity 240ms ease; }
+.setup-card { max-width: 460px; text-align: left; }
+.setup-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  background: var(--accent-cyan);
+  color: #fff;
+}
+.setup-steps { align-self: stretch; list-style: none; margin: 18px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.setup-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  transition: color 200ms ease, background-color 200ms ease;
+}
+.setup-step[data-state="running"] { color: var(--text-primary); background: var(--chip-hover); }
+.setup-step[data-state="done"] { color: var(--text-primary); }
+.setup-mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--panel-border);
+}
+.setup-step[data-state="running"] .setup-mark {
+  border-color: var(--panel-border);
+  border-top-color: var(--accent-cyan);
+  animation: setupSpin 0.8s linear infinite;
+}
+.setup-step[data-state="done"] .setup-mark { border-color: transparent; background: var(--accent-cyan); color: #fff; }
+.setup-step[data-state="skipped"] .setup-mark { border-color: transparent; color: var(--text-tertiary); }
+.setup-step[data-state="failed"] .setup-mark { border-color: transparent; background: #e5484d; color: #fff; }
+.setup-text { flex: 1; }
+.setup-detail { font-size: 0.78rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.setup-error { align-self: stretch; margin: 12px 0 0; font-size: 0.85rem; color: #ff8a80; }
+.setup-actions { display: flex; gap: 10px; margin-top: 16px; }
+.setup-actions[hidden], .setup-error[hidden] { display: none; }
+@keyframes setupSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .setup-step[data-state="running"] .setup-mark { animation-duration: 2.4s; }
+}

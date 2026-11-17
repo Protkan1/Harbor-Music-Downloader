@@ -7,3 +7,4 @@ temp_*.jpg
 # Build output
 release/
 *.bundle
+vendor/

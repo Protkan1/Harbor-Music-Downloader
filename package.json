@@ -1,6 +1,6 @@
 {
   "name": "spotdl-ytdlp-gui",
-  "version": "2.9.4",
+  "version": "2.10.0",
   "description": "Harbor: download and play music and video from YouTube, Spotify, SoundCloud and Apple Music",
   "main": "dist/main/main.js",
   "scripts": {
@@ -10,7 +10,8 @@
     "build": "npm run build:tsc && npm run build:renderer",
     "start": "npm run build && electron .",
     "dev": "node scripts/dev.js",
-    "dist": "npm run build && electron-builder --win nsis --publish never"
+    "dist": "npm run build && node scripts/check-vendor.js && electron-builder --win nsis --publish never",
+    "build:engine": "node scripts/build-engine.js"
   },
   "keywords": [
     "music-downloader",
@@ -52,6 +53,18 @@
         "filter": [
           "*.py"
         ]
+      },
+      {
+        "from": "vendor/engine",
+        "to": "engine"
+      },
+      {
+        "from": "vendor/ffmpeg",
+        "to": "ffmpeg"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
       }
     ],
     "win": {

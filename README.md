@@ -43,26 +43,22 @@ Harbor, [yt-dlp](https://github.com/yt-dlp/yt-dlp) ve [spotDL](https://github.co
 
 1. [Releases](../../releases) sayfasından `Harbor-Setup-<sürüm>.exe` dosyasını indirip çalıştır.
    Kurulum dosyası dijital olarak imzalı olmadığı için Windows SmartScreen ilk seferde uyarabilir: **Ek bilgi → Yine de çalıştır**.
-2. Harbor'ın kullandığı araçları bir kez kur:
-
-   ```powershell
-   winget install Python.Python.3.12
-   winget install Gyan.FFmpeg
-   pip install spotdl yt-dlp mutagen pillow
-   ```
-
-   Kenar çubuğu, bulduğu her aracın yanında yeşil **OK** gösterir. Python + mutagen + Pillow olmasa da her şey çalışır; yalnızca kapak/etiket düzenleme adımı atlanır.
+2. Başka hiçbir şey kurman gerekmez. Python, yt-dlp, spotDL ve ffmpeg kurulum dosyasının içinde gelir.
+   İlk açılışta kısa bir **"Harbor hazırlanıyor"** ekranı bileşenleri doğrular ve internet varsa yt-dlp'yi en yeni sürüme günceller; bitince uygulama açılır.
 
 ## Kaynaktan derleme
 
-Node.js 20+ ve yukarıdaki araçlar gerekir.
+Node.js 20+ ve (yalnızca motoru derlemek için) Python 3.12 gerekir.
 
 ```powershell
 npm install
-npm run dev     # geliştirme: izleme modu, ana süreç kodu değişince uygulama yeniden başlar
-npm start       # bir kez derle ve çalıştır
-npm run dist    # release/ klasörüne Windows kurulum dosyasını oluştur
+npm run build:engine   # vendor/: Python motoru (PyInstaller) + ffmpeg, bir kez
+npm run dev            # geliştirme: izleme modu, ana süreç kodu değişince uygulama yeniden başlar
+npm start              # bir kez derle ve çalıştır
+npm run dist           # release/ klasörüne Windows kurulum dosyasını oluştur
 ```
+
+`vendor/` yoksa uygulama sistemde kurulu yt-dlp, spotdl ve ffmpeg'i kullanır.
 
 `npm run build:icon`, ikon setini `build/icon.svg` dosyasından yeniden üretir.
 
@@ -84,7 +80,11 @@ src/
 ├── preload/                   contextBridge: arayüz ile Node arasındaki tek kapı
 ├── renderer/                  arayüz (TypeScript + CSS, framework yok), esbuild ile paketlenir
 └── shared/                    iki tarafın da kullandığı tipler ve URL yardımcıları
+engine/
+├── harbor_engine.py           paketlenmiş Python motoru: yt-dlp, spotdl, tagger, scan alt komutları
+└── requirements.lock.txt      motordaki tüm paketlerin sabitlenmiş sürümleri
 scripts/
+├── build-engine.js            motoru PyInstaller ile derler, ffmpeg'i indirip sağlama toplamıyla doğrular
 ├── tagger.py                  ID3/MP4 etiketleri ve kapak (mutagen + Pillow)
 ├── scan_media.py              yerel müziklerin etiket ve kapaklarını toplu okur
 └── spotdl_fast.py             spotDL'ı daha hızlı Spotify sorgularıyla çalıştırır
@@ -94,6 +94,7 @@ scripts/
 
 - **Güvenlik:** Pencere `contextIsolation`, `sandbox` ve sıkı bir İçerik Güvenlik Politikası (CSP) ile çalışır. Arayüzün Node erişimi yoktur; her işlem küçük, tipli bir IPC yüzeyinden geçer ve girdiler ana süreçte doğrulanır.
 - **Sağlam süreç yönetimi:** Her indirme kendi geçici klasöründe çalışır. Çıktı yolları konsol metninden ayıklanmaz, yt-dlp'nin kendi `--print-to-file` çıktısından alınır. İptal, tüm süreç ağacını (yt-dlp → ffmpeg) sonlandırır.
+- **Kurulumsuz çalışma:** Python, yt-dlp, spotDL, mutagen ve Pillow PyInstaller ile tek bir motora paketlenir; ffmpeg LGPL derlemesi yanında gelir. Siteler sık değiştiği için motor, uygulamanın indirdiği yeni yt-dlp sürümünü kendi kopyasının önüne koyar. Yeni sürüm resmi SHA-256 listesiyle doğrulanır ve denenmeden kullanılmaz.
 - **Hız:** spotDL'ın Spotify istemcisi her şarkı için web oynatıcının ~75 dosyasını yeniden indiriyordu. `spotdl_fast.py` bunu kurulu paketlere dokunmadan, yalnızca çalışan süreçte düzeltir (paralel indirme + yeniden kullanım); beklenmeyen bir durumda orijinal koda döner. Tek şarkılık indirme ~34 sn'den ~22 sn'ye indi.
 - **Hareket:** Sekme geçişleri View Transitions API ile yapılır; bir kapağa tıklayınca kapak oynatıcıya dönüşür; seçim göstergeleri yay fiziğiyle (Motion) kayar. "Animasyonları azalt" açıkken hepsi anlık değişime döner.
 
@@ -103,4 +104,4 @@ Harbor kişisel bir projedir. Yalnızca indirme hakkın olan içerikleri indir v
 
 ## Lisans
 
-[MIT](LICENSE)
+Harbor'ın kodu [MIT](LICENSE). Kurulum dosyasıyla gelen motor ve ffmpeg kendi lisanslarıyla dağıtılır (GPL-3.0+ ve LGPL-2.1+); ayrıntılar [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasında.

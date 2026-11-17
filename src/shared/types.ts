@@ -14,6 +14,26 @@ export interface AppSettings {
   lastYtDlpCheck: number;
   /** Highest video height picked when no quality is chosen (0 = best available). */
   defaultVideoHeight: number;
+  /** App version whose first-run setup finished (tools verified, yt-dlp updated). */
+  setupDoneFor?: string;
+}
+
+/** First-run setup (SetupService) */
+export type SetupStepId = 'engine' | 'ffmpeg' | 'ytdlp';
+export interface SetupProgress {
+  step: SetupStepId;
+  state: 'running' | 'done' | 'skipped' | 'failed';
+  /** e.g. the yt-dlp version */
+  detail?: string;
+}
+export interface SetupStatus {
+  needed: boolean;
+  /** Tools come with the app (installed build) rather than from the system */
+  bundled: boolean;
+}
+export interface SetupResult {
+  ok: boolean;
+  error?: SetupStepId;
 }
 
 /** Midnight ('aura'), Ember ('ember'), Glacier ('true-liquid'), Clay ('claude'). Ids are stored in settings, so they stay. */
@@ -278,6 +298,9 @@ export interface ElectronAPI {
   libraryImportLocal: (kind: 'file' | 'folder') => Promise<{ success: boolean; canceled?: boolean; playlist?: LibraryPlaylist; missing?: number; error?: string }>;
   onLibraryImportProgress: (callback: (p: { done: number; total: number }) => void) => () => void;
   onLibraryChanged: (callback: () => void) => () => void;
+  getSetupStatus: () => Promise<SetupStatus>;
+  runSetup: () => Promise<SetupResult>;
+  onSetupProgress: (callback: (p: SetupProgress) => void) => () => void;
   getUpdateStatus: () => Promise<UpdateStatus>;
   checkForUpdate: () => Promise<UpdateStatus>;
   runUpdate: () => Promise<UpdateStatus>;

@@ -4,6 +4,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { SubtitleTrack } from '../../shared/types';
 import { UTF8_ENV, killTree, readLines } from './processUtils';
+import { ytdlpCommand } from './tools';
 
 const CACHE_MAX = 40;
 
@@ -60,7 +61,8 @@ export class SubtitleService {
     ];
     return new Promise((resolve) => {
       let error = '';
-      const p = spawn('yt-dlp', args, { shell: false, windowsHide: true, env: UTF8_ENV });
+      const yt = ytdlpCommand();
+      const p = spawn(yt.cmd, [...yt.prefix, ...args], { shell: false, windowsHide: true, env: UTF8_ENV });
       const timer = setTimeout(() => killTree(p), 45000);
       readLines(p.stdout!, () => {});
       readLines(p.stderr!, (l) => {

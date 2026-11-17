@@ -10,6 +10,8 @@ import { UpdateService } from './services/UpdateService';
 import { ProbeService } from './services/ProbeService';
 import { LibraryService } from './services/LibraryService';
 import { registerIpcHandlers } from './ipcHandlers';
+import { SetupService } from './services/SetupService';
+import { initTools } from './services/tools';
 
 // Settings, history, library and covers live in %APPDATA%\Harbor. Before the rename they
 // were in %APPDATA%\spotdl-ytdlp-gui; an existing folder there keeps being used so nobody
@@ -119,6 +121,8 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 app.whenReady().then(() => {
+  // Bundled ffmpeg on PATH, updated yt-dlp location: before any tool is started
+  initTools(app.getPath('userData'));
   settingsService = new SettingsService();
   historyService = new HistoryService();
   downloadManager = new DownloadManager(settingsService, historyService);
@@ -127,6 +131,9 @@ app.whenReady().then(() => {
   updateService = new UpdateService(settingsService, () => downloadManager.isIdle());
   const probeService = new ProbeService(catalogService, streamManager, () => settingsService.getSettings().defaultVideoHeight ?? 1080);
   const libraryService = new LibraryService(catalogService);
+  const setupService = new SetupService(settingsService, updateService, (p) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('setup:progress', p);
+  });
   registerIpcHandlers(
     settingsService,
     downloadManager,
@@ -135,7 +142,8 @@ app.whenReady().then(() => {
     historyService,
     updateService,
     probeService,
-    libraryService
+    libraryService,
+    setupService
   );
   libraryService.onChange(() => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('library:changed');

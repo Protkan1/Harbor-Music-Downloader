@@ -18,6 +18,7 @@ import { isSpotifyUrl } from '../../shared/urls';
 import { SettingsService } from './SettingsService';
 import { HistoryService } from './HistoryService';
 import { UTF8_ENV, commandSucceeds, killTree, readLines, resolvePython, resolveSpotdl, scriptPath } from './processUtils';
+import { engineCommand, ffmpegCommand, ytdlpCommand } from './tools';
 
 interface Task {
   id: string;
@@ -103,10 +104,20 @@ export class DownloadManager {
   }
 
   public async checkDependencies(): Promise<DependencyStatus> {
+    const engine = engineCommand('selftest');
+    const yt = ytdlpCommand();
+    if (engine) {
+      // Bundled: one engine runs yt-dlp, spotDL and the tagger
+      const [ok, ffmpeg] = await Promise.all([
+        commandSucceeds(engine.cmd, engine.prefix, 60000),
+        commandSucceeds(ffmpegCommand(), ['-version']),
+      ]);
+      return { spotdl: ok, ytdlp: ok, ffmpeg, tagger: ok };
+    }
     const [spotdl, ytdlp, ffmpeg, python] = await Promise.all([
       commandSucceeds('spotdl', ['--version'], 30000),
-      commandSucceeds('yt-dlp', ['--version']),
-      commandSucceeds('ffmpeg', ['-version']),
+      commandSucceeds(yt.cmd, [...yt.prefix, '--version']),
+      commandSucceeds(ffmpegCommand(), ['-version']),
       resolvePython(),
     ]);
     return { spotdl, ytdlp, ffmpeg, tagger: python !== null };
@@ -203,7 +214,10 @@ export class DownloadManager {
     this.emit(task, { status: 'downloading', title: this.metaTitle(task.request) || task.request.url });
 
     // spotdl runs through scripts/spotdl_fast.py when possible (much faster Spotify lookups)
-    const launch = task.tool === 'spotdl' ? await resolveSpotdl(scriptPath('spotdl_fast.py')) : { cmd: task.tool, prefix: [] as string[] };
+    const launch =
+      task.tool === 'spotdl'
+        ? engineCommand('spotdl') ?? (await resolveSpotdl(scriptPath('spotdl_fast.py')))
+        : ytdlpCommand();
     if (task.cancelled) {
       this.emit(task, { status: 'cancelled' });
       return;
@@ -572,18 +586,20 @@ export class DownloadManager {
    * cover thumbnail it reports, or null when Python/mutagen is missing or the run failed.
    */
   public async runTagger(file: string, mode: 'clean' | 'preserve', infoOnly = false): Promise<TaggerInfo | null> {
-    const python = await resolvePython();
-    if (!python) {
+    // Bundled engine first; otherwise a system Python with mutagen + Pillow
+    const engine = engineCommand('tagger');
+    const python = engine ? null : await resolvePython();
+    if (!engine && !python) {
       console.warn('[DownloadManager] Python with mutagen+Pillow not found; skipping tagger');
       return null;
     }
-    const taggerPath = scriptPath('tagger.py');
-
-    const args = [...python.prefix, '-I', '-X', 'utf8', taggerPath, file, '--mode', mode, '--cover-out', this.coverPathFor(file)];
-    if (infoOnly) args.push('--info-only');
+    const taggerArgs = [file, '--mode', mode, '--cover-out', this.coverPathFor(file)];
+    if (infoOnly) taggerArgs.push('--info-only');
+    const cmd = engine ? engine.cmd : python!.cmd;
+    const args = engine ? [...engine.prefix, ...taggerArgs] : [...python!.prefix, '-I', '-X', 'utf8', scriptPath('tagger.py'), ...taggerArgs];
     return new Promise<TaggerInfo | null>((resolve) => {
       let info: TaggerInfo | null = null;
-      const p = spawn(python.cmd, args, { shell: false, windowsHide: true, env: UTF8_ENV });
+      const p = spawn(cmd, args, { shell: false, windowsHide: true, env: UTF8_ENV });
       readLines(p.stdout, (l) => {
         if (l.startsWith('__INFO__ ')) {
           try {

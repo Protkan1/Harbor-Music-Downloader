@@ -1,12 +1,15 @@
 import { spawn } from 'child_process';
+import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { UpdateStatus } from '../../shared/types';
 import { SettingsService } from './SettingsService';
 import { UTF8_ENV, readLines } from './processUtils';
+import { isBundled, updatedYtDlpZip, ytdlpCommand } from './tools';
 
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // auto-check at most twice a day
 const RELEASES_URL = 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest';
+const DOWNLOAD_BASE = 'https://github.com/yt-dlp/yt-dlp/releases/download';
 
 type InstallMethod = 'pip' | 'standalone' | 'unknown';
 
@@ -122,9 +125,11 @@ export class UpdateService {
     this.busy = (async () => {
       const before = await this.currentVersion();
       this.set({ state: 'updating', error: undefined });
-      const { method, python } = await this.installMethod();
       let result: { code: number | null; out: string };
-      if (method === 'pip' && python) {
+      const { method, python } = isBundled() ? { method: 'bundled' as const, python: undefined } : await this.installMethod();
+      if (method === 'bundled') {
+        result = await this.updateBundled();
+      } else if (method === 'pip' && python) {
         result = await run(python, ['-m', 'pip', 'install', '--upgrade', '--disable-pip-version-check', 'yt-dlp'], 300000);
       } else {
         result = await run('yt-dlp', ['-U'], 300000);
@@ -149,8 +154,61 @@ export class UpdateService {
     return this.busy;
   }
 
+  /**
+   * Bundled Harbor: download the official pure-Python yt-dlp zip of the latest release,
+   * check it against the release's SHA2-256SUMS, make sure it runs, then put it where the
+   * engine looks first. A bad download never replaces a working one.
+   */
+  private async updateBundled(): Promise<{ code: number | null; out: string }> {
+    const tag = this.status.latest ?? (await this.latestVersion());
+    if (!tag) return { code: 1, out: 'Could not reach GitHub' };
+    const target = updatedYtDlpZip();
+    const tmp = target + '.download';
+    try {
+      const get = async (url: string) => {
+        const res = await fetch(url, { headers: { 'User-Agent': 'Harbor' }, signal: AbortSignal.timeout(120000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+        return Buffer.from(await res.arrayBuffer());
+      };
+      const [zip, sums] = await Promise.all([get(`${DOWNLOAD_BASE}/${tag}/yt-dlp`), get(`${DOWNLOAD_BASE}/${tag}/SHA2-256SUMS`)]);
+      const expected = sums
+        .toString('utf8')
+        .split('\n')
+        .map((l) => l.trim().split(/\s+/))
+        .find((p) => p[1] === 'yt-dlp')?.[0];
+      const actual = createHash('sha256').update(zip).digest('hex');
+      if (!expected || expected.toLowerCase() !== actual) return { code: 1, out: 'Checksum mismatch, update discarded' };
+
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(tmp, zip);
+      // Try the new copy before trusting it
+      const yt = ytdlpCommand();
+      const probe = await new Promise<{ code: number | null; out: string }>((resolve) => {
+        let out = '';
+        const child = spawn(yt.cmd, [...yt.prefix, '--version'], {
+          shell: false,
+          windowsHide: true,
+          env: { ...UTF8_ENV, HARBOR_YTDLP_ZIP: tmp },
+        });
+        readLines(child.stdout!, (l) => (out += l + '\n'));
+        child.on('error', (e) => resolve({ code: null, out: e.message }));
+        child.on('close', (code) => resolve({ code, out }));
+      });
+      if (probe.code !== 0 || !probe.out.includes(tag)) {
+        fs.rmSync(tmp, { force: true });
+        return { code: 1, out: 'The downloaded yt-dlp did not start, update discarded' };
+      }
+      fs.renameSync(tmp, target);
+      return { code: 0, out: `yt-dlp ${tag}` };
+    } catch (err: any) {
+      fs.rmSync(tmp, { force: true });
+      return { code: 1, out: String(err?.message ?? err) };
+    }
+  }
+
   private async currentVersion(): Promise<string | null> {
-    const r = await run('yt-dlp', ['--version'], 20000);
+    const yt = ytdlpCommand();
+    const r = await run(yt.cmd, [...yt.prefix, '--version'], 30000);
     const v = r.out.trim().split('\n').pop()?.trim();
     return r.code === 0 && v && /^\d{4}\.\d{2}\.\d{2}/.test(v) ? v : null;
   }
@@ -158,7 +216,7 @@ export class UpdateService {
   private async latestVersion(): Promise<string | null> {
     try {
       const res = await fetch(RELEASES_URL, {
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'spotdl-gui' },
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Harbor' },
         signal: AbortSignal.timeout(10000),
       });
       if (!res.ok) return null;

@@ -1,0 +1,5 @@
+spotdl==4.6.0
+yt-dlp[default]==2026.10.26
+mutagen==1.48.1
+pillow==13.0.0
+pyinstaller==6.22.3

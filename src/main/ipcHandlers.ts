@@ -9,6 +9,7 @@ import { HistoryService } from './services/HistoryService';
 import { UpdateService } from './services/UpdateService';
 import { ProbeService } from './services/ProbeService';
 import { LibraryService } from './services/LibraryService';
+import { SetupService } from './services/SetupService';
 import { SubtitleService } from './services/SubtitleService';
 
 const subtitleService = new SubtitleService();
@@ -24,8 +25,12 @@ export function registerIpcHandlers(
   historyService: HistoryService,
   updateService: UpdateService,
   probeService: ProbeService,
-  libraryService: LibraryService
+  libraryService: LibraryService,
+  setupService: SetupService
 ) {
+  ipcMain.handle('setup:status', async () => setupService.status());
+  ipcMain.handle('setup:run', async () => setupService.run());
+
   ipcMain.handle('settings:get', async () => {
     return settingsService.getSettings();
   });

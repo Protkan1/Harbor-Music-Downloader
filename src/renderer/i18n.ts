@@ -305,6 +305,16 @@ const tr = {
   vcTranslating: "Altyazı çevriliyor…",
   vcLoadingSubs: "Altyazı yükleniyor…",
   vcSubsFailed: "Altyazı alınamadı",
+  setupTitle: "Harbor hazırlanıyor",
+  setupDesc: "İlk açılışta bileşenler kontrol ediliyor. Bu bir kez yapılır, birkaç saniye sürer.",
+  setupEngine: "İndirme motoru (yt-dlp, spotDL)",
+  setupFfmpeg: "Ses ve video dönüştürücü (ffmpeg)",
+  setupYtdlp: "yt-dlp güncellemesi",
+  setupYtdlpOffline: "Çevrimdışı, sonra denenecek",
+  setupFailed: "Bir bileşen başlatılamadı. Antivirüs programın engellemiş olabilir; tekrar dene.",
+  setupFailedDev: "Araçlar bulunamadı. Geliştirme modunda önce npm run build:engine çalıştırılmalı ya da yt-dlp, spotdl ve ffmpeg sisteme kurulmalı.",
+  setupRetry: "Tekrar dene",
+  setupSkip: "Yine de devam et",
 };
 
 export type LangKey = keyof typeof tr;
@@ -595,6 +605,16 @@ const en: Record<LangKey, string> = {
   vcTranslating: "Translating subtitles…",
   vcLoadingSubs: "Loading subtitles…",
   vcSubsFailed: "Could not load subtitles",
+  setupTitle: "Getting Harbor ready",
+  setupDesc: "Checking the components on first launch. This happens once and takes a few seconds.",
+  setupEngine: "Download engine (yt-dlp, spotDL)",
+  setupFfmpeg: "Audio and video converter (ffmpeg)",
+  setupYtdlp: "yt-dlp update",
+  setupYtdlpOffline: "Offline, will retry later",
+  setupFailed: "A component could not start. Your antivirus may have blocked it; try again.",
+  setupFailedDev: "Tools not found. In development, run npm run build:engine first or install yt-dlp, spotdl and ffmpeg on the system.",
+  setupRetry: "Try again",
+  setupSkip: "Continue anyway",
 };
 
 export const translations: Record<'tr' | 'en', Record<LangKey, string>> = { tr, en };

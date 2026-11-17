@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ElectronAPI, DownloadProgressPayload, DownloadTaskRequest, AppSettings, UpdateStatus, LibraryItem, SubtitleTrack } from '../shared/types';
+import type { ElectronAPI, DownloadProgressPayload, DownloadTaskRequest, AppSettings, UpdateStatus, LibraryItem, SubtitleTrack, SetupProgress } from '../shared/types';
 
 const api: ElectronAPI = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -37,6 +37,15 @@ const api: ElectronAPI = {
     ipcRenderer.on('library:changed', handler);
     return () => {
       ipcRenderer.removeListener('library:changed', handler);
+    };
+  },
+  getSetupStatus: () => ipcRenderer.invoke('setup:status'),
+  runSetup: () => ipcRenderer.invoke('setup:run'),
+  onSetupProgress: (callback: (p: SetupProgress) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, p: SetupProgress) => callback(p);
+    ipcRenderer.on('setup:progress', handler);
+    return () => {
+      ipcRenderer.removeListener('setup:progress', handler);
     };
   },
   getUpdateStatus: () => ipcRenderer.invoke('update:status'),

@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { LibraryItem } from '../../shared/types';
 import { UTF8_ENV, readLines, resolvePython, scriptPath } from './processUtils';
+import { engineCommand } from './tools';
 
 export const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.oga', '.webm', '.mp4', '.m4b', '.aiff', '.aif']);
 const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mkv', '.mov']);
@@ -226,13 +227,14 @@ export async function toLibraryItems(
   const missing = entries.length - existing.length;
   const scanned = new Map<string, ScanItem>();
 
-  const python = await resolvePython();
-  if (python && existing.length) {
-    const script = scriptPath('scan_media.py');
-    const listFile = path.join(os.tmpdir(), `aura-scan-${Date.now()}.json`);
+  const engine = engineCommand('scan');
+  const python = engine ? null : await resolvePython();
+  const runner = engine ?? (python ? { cmd: python.cmd, prefix: [...python.prefix, '-I', '-X', 'utf8', scriptPath('scan_media.py')] } : null);
+  if (runner && existing.length) {
+    const listFile = path.join(os.tmpdir(), `harbor-scan-${Date.now()}.json`);
     fs.writeFileSync(listFile, JSON.stringify(existing.map((e) => e.path)), 'utf-8');
     await new Promise<void>((resolve) => {
-      const p = spawn(python.cmd, [...python.prefix, '-I', '-X', 'utf8', script, listFile, coversDir], {
+      const p = spawn(runner.cmd, [...runner.prefix, listFile, coversDir], {
         shell: false,
         windowsHide: true,
         env: UTF8_ENV,

@@ -43,26 +43,22 @@ Harbor is a front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [spotDL
 
 1. Download `Harbor-Setup-<version>.exe` from [Releases](../../releases) and run it.
    The installer isn't code-signed, so Windows SmartScreen may warn the first time: choose **More info → Run anyway**.
-2. Harbor uses these tools, which you install once:
-
-   ```powershell
-   winget install Python.Python.3.12
-   winget install Gyan.FFmpeg
-   pip install spotdl yt-dlp mutagen pillow
-   ```
-
-   The sidebar shows a green **OK** next to each tool Harbor finds. Without Python + mutagen + Pillow everything still works; only the cover/tag clean-up step is skipped.
+2. Nothing else to install. Python, yt-dlp, spotDL and ffmpeg come inside the installer.
+   On first launch a short **"Getting Harbor ready"** screen checks the components and, when online, updates yt-dlp to the latest release; then the app opens.
 
 ## Build from source
 
-Requires Node.js 20+ and the tools above.
+Requires Node.js 20+ and (only to build the engine) Python 3.12.
 
 ```powershell
 npm install
-npm run dev     # development: watch mode, the app restarts when main-process code changes
-npm start       # build once and run
-npm run dist    # create the Windows installer in release/
+npm run build:engine   # vendor/: the Python engine (PyInstaller) + ffmpeg, once
+npm run dev            # development: watch mode, the app restarts when main-process code changes
+npm start              # build once and run
+npm run dist           # create the Windows installer in release/
 ```
+
+Without `vendor/`, the app uses yt-dlp, spotdl and ffmpeg installed on the system.
 
 `npm run build:icon` regenerates the icon set from `build/icon.svg`.
 
@@ -84,7 +80,11 @@ src/
 ├── preload/                   contextBridge: the only door between the UI and Node
 ├── renderer/                  UI (TypeScript + CSS, no framework), bundled with esbuild
 └── shared/                    types and URL helpers used by both sides
+engine/
+├── harbor_engine.py           the bundled Python engine: yt-dlp, spotdl, tagger, scan subcommands
+└── requirements.lock.txt      pinned versions of every package in the engine
 scripts/
+├── build-engine.js            builds the engine with PyInstaller, downloads ffmpeg and checks its checksum
 ├── tagger.py                  ID3/MP4 tags and cover art (mutagen + Pillow)
 ├── scan_media.py              reads tags and covers of local music in bulk
 └── spotdl_fast.py             runs spotDL with faster Spotify lookups
@@ -94,6 +94,7 @@ A few decisions worth mentioning:
 
 - **Security:** the window runs with `contextIsolation`, `sandbox` and a strict Content Security Policy. The UI has no Node access; every action goes through a small, typed IPC surface whose inputs are validated in the main process.
 - **Robust process handling:** every download runs in its own temp folder, output paths come from yt-dlp's own `--print-to-file` instead of parsing console text, and cancelling kills the whole process tree (yt-dlp → ffmpeg).
+- **Nothing to install:** Python, yt-dlp, spotDL, mutagen and Pillow are frozen into one engine with PyInstaller; an LGPL ffmpeg build ships next to it. Because sites change often, the engine prefers a newer yt-dlp the app downloads, which is verified against the official SHA-256 list and test-run before it is used.
 - **Speed:** spotDL's Spotify client re-downloaded about 75 web-player scripts for every track. `spotdl_fast.py` patches that in-process (parallel fetch + reuse) without modifying installed packages and falls back to the original code if anything differs, cutting a single-track download from ~34 s to ~22 s.
 - **Motion:** tab changes use the View Transitions API; clicking a thumbnail morphs it into the player; selection indicators use spring physics (Motion). Everything falls back to instant changes under reduced motion.
 
@@ -103,4 +104,4 @@ Harbor is a personal project. Download only content you have the right to downlo
 
 ## License
 
-[MIT](LICENSE)
+Harbor's code is [MIT](LICENSE). The engine and ffmpeg shipped with the installer keep their own licenses (GPL-3.0+ and LGPL-2.1+); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

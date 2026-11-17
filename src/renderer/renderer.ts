@@ -18,6 +18,7 @@ import { setupMotion } from './motion';
 import { setupPreview, requestFromOption } from './preview';
 import { setupPlayerBar } from './playerbar';
 import { setupLibrary } from './library';
+import { runFirstSetup } from './setup';
 import { withViewTransition } from './transitions';
 
 // Application State
@@ -118,6 +119,8 @@ async function initApp() {
 
   window.electronAPI.onDownloadProgress((payload) => updateTaskCard(payload));
 
+  // First launch of a version: verify the bundled tools (blocking dialog) before anything else
+  await runFirstSetup();
   checkDependencies();
   setupUpdates(currentSettings);
 
