@@ -30,6 +30,8 @@ const api: ElectronAPI = {
   libraryPickCover: () => ipcRenderer.invoke('library:pickCover'),
   librarySetCover: (id: string, jpeg: Uint8Array) => ipcRenderer.invoke('library:setCover', id, jpeg),
   libraryClearCover: (id: string) => ipcRenderer.invoke('library:clearCover', id),
+  libraryRestoreSkipped: (id: string, key: string, youtubeUrl: string) => ipcRenderer.invoke('library:restoreSkipped', id, key, youtubeUrl),
+  libraryDismissSkipped: (id: string, key: string) => ipcRenderer.invoke('library:dismissSkipped', id, key),
   onLibraryImportProgress: (callback: (p: { done: number; total?: number }) => void) => {
     const handler = (_: Electron.IpcRendererEvent, p: { done: number; total?: number }) => callback(p);
     ipcRenderer.on('library:importProgress', handler);

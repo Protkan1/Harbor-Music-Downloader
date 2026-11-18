@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
 import { app } from 'electron';
-import { CatalogEntry, LibraryItem, LibraryPlaylist } from '../../shared/types';
-import { sourceOf } from '../../shared/urls';
+import { CatalogEntry, LibraryItem, LibraryPlaylist, SkippedTrack } from '../../shared/types';
+import { sourceOf, youTubeId } from '../../shared/urls';
 import { CatalogService, ImportProgress } from './CatalogService';
 import { LocalSource, parsePlaylistFile, scanFolder, toLibraryItems } from './LocalImport';
 
@@ -11,6 +11,23 @@ const MAX_ITEMS = 5000;
 
 /** Only https images from the platform are kept as a playlist cover. */
 const safeCover = (url?: string) => (url && /^https:\/\//i.test(url) && url.length <= 2000 ? url : undefined);
+
+/** Skipped tracks as stored: bounded strings, https covers, at most 5000; undefined when none. */
+function cleanSkipped(list?: SkippedTrack[]): SkippedTrack[] | undefined {
+  if (!Array.isArray(list) || !list.length) return undefined;
+  const str = (v: unknown, max = 300) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined);
+  return list.slice(0, 5000).map((s) => ({
+    key: String(s.key).slice(0, 200),
+    pos: s.pos,
+    title: str(s.title) ?? '?',
+    artist: str(s.artist),
+    album: str(s.album),
+    duration: typeof s.duration === 'number' && isFinite(s.duration) ? Math.round(s.duration) : undefined,
+    cover: safeCover(s.cover),
+    url: safeCover(s.url),
+    reason: s.reason,
+  }));
+}
 
 const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -173,8 +190,64 @@ export class LibraryService {
     playlist.origin = { source: list.source, url };
     playlist.cover = safeCover(list.cover);
     playlist.description = list.description;
+    playlist.skipped = cleanSkipped(list.skipped);
     this.persist();
     return { success: true, playlist: this.list().find((p) => p.id === playlist.id) };
+  }
+
+  /**
+   * Puts a YouTube copy of a skipped track into the playlist at the track's own place, with the
+   * platform's title, artist, length and cover (so downloads are tagged like the rest).
+   */
+  public restoreSkipped(id: string, key: string, youtubeUrl: string): { success: boolean; position?: number; error?: 'notFound' | 'badUrl' } {
+    const p = this.find(id);
+    const s = p?.skipped?.find((x) => x.key === key);
+    if (!p || !s) return { success: false, error: 'notFound' };
+    const vid = /^https:\/\/([a-z0-9-]+\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl.trim()) ? youTubeId(youtubeUrl.trim()) : null;
+    if (!vid) return { success: false, error: 'badUrl' };
+    const item: LibraryItem = {
+      id: newId('it'),
+      title: s.title,
+      artist: s.artist,
+      duration: s.duration,
+      thumbnail: s.cover,
+      url: `https://www.youtube.com/watch?v=${vid}`,
+      source: 'youtube',
+      isVideo: false, // stands in for a song: plays and downloads as music
+      pos: s.pos,
+    };
+    const position = this.placeByPos(p, item);
+    this.markSkippedDone(p, key);
+    return { success: true, position: position + 1 };
+  }
+
+  public dismissSkipped(id: string, key: string) {
+    const p = this.find(id);
+    if (p?.skipped?.some((x) => x.key === key)) this.markSkippedDone(p, key);
+  }
+
+  private markSkippedDone(p: LibraryPlaylist, key: string) {
+    p.skipped = (p.skipped ?? []).filter((x) => x.key !== key);
+    p.skippedDone = [...new Set([...(p.skippedDone ?? []), key])].slice(-5000);
+    p.updatedAt = Date.now();
+    this.persist();
+  }
+
+  /**
+   * Inserts before the first item that came later in the source list. Items without a place
+   * (added by hand) stay at the end. Returns the index used.
+   */
+  private placeByPos(p: LibraryPlaylist, item: LibraryItem): number {
+    const pos = item.pos ?? Infinity;
+    let at = p.items.findIndex((i) => typeof i.pos === 'number' && i.pos > pos);
+    if (at < 0) {
+      // After the last item that has a place; a list without places gets it by number
+      let last = -1;
+      p.items.forEach((i, idx) => typeof i.pos === 'number' && (last = idx));
+      at = last >= 0 ? last + 1 : Math.min(Number.isFinite(pos) ? pos : p.items.length, p.items.length);
+    }
+    p.items.splice(at, 0, item);
+    return at;
   }
 
   /**
@@ -218,13 +291,28 @@ export class LibraryService {
     }
     const res = await this.catalog.getPlaylist(p.origin.url, true);
     if (!res.success || !res.data) return { success: false, error: res.error ?? res.errorCode };
+    const data = res.data;
     // The platform's picture may have changed (a custom one the user picked here still wins)
-    const cover = safeCover(res.data.cover);
-    if (cover !== p.cover) {
-      p.cover = cover;
-      this.persist();
+    p.cover = safeCover(data.cover);
+    // An empty description is filled from the platform; one the user wrote is kept
+    if (!p.description && data.description) p.description = data.description;
+    // Playlists imported before 2.13 have no places yet: take them from the fresh list
+    const posByUrl = new Map(data.entries.map((e) => [e.url, e.pos]));
+    for (const i of p.items) if (i.pos === undefined && posByUrl.get(i.url) !== undefined) i.pos = posByUrl.get(i.url);
+    // New tracks go to their place in the list, not to the end
+    const have = new Set(p.items.map((i) => i.url));
+    let added = 0;
+    for (const e of data.entries) {
+      if (have.has(e.url) || p.items.length >= MAX_ITEMS) continue;
+      have.add(e.url);
+      this.placeByPos(p, this.fromEntry(e, data.source));
+      added++;
     }
-    const added = this.addItems(id, res.data.entries.map((e) => this.fromEntry(e, res.data!.source)));
+    // Skipped tracks: the current ones, minus those already replaced or ignored
+    const done = new Set(p.skippedDone ?? []);
+    p.skipped = cleanSkipped(data.skipped)?.filter((s) => !done.has(s.key));
+    p.updatedAt = Date.now();
+    this.persist();
     return { success: true, added };
   }
 
@@ -238,6 +326,7 @@ export class LibraryService {
       url: e.url,
       source,
       isVideo: source === 'youtube',
+      pos: e.pos,
     };
   }
 
@@ -259,6 +348,7 @@ export class LibraryService {
       filePath,
       source: filePath && !url ? 'local' : (i.source ?? sourceOf(url)),
       isVideo: !!i.isVideo,
+      pos: Number.isInteger(i.pos) && (i.pos as number) >= 0 ? i.pos : undefined,
     };
   }
 

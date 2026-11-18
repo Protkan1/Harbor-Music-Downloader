@@ -2,7 +2,10 @@
 harbor-engine spotify-list <playlist|album URL or ID>
 
 Prints one JSON object with the complete track list of a public Spotify playlist or album:
-    {"kind", "title", "cover", "description", "total", "tracks": [{"id", "title", "artist", "duration", "cover"}]}
+    {"kind", "title", "cover", "description", "total",
+     "tracks":  [{"id", "pos", "title", "artist", "album", "duration", "cover"}],
+     "skipped": [{... same, "reason": "region" | "local" | "episode" | "unavailable"}]}
+"pos" is the place in the original list, so a replacement can go back where it was.
 
 Spotify's embed page (what the app used before) stops at 100 tracks and has no per-track art.
 spotapi reads the web player's own API page by page, so a 1250-track playlist comes back whole,
@@ -42,6 +45,32 @@ def _text(raw, limit=1000):
     return text[:limit] or None
 
 
+def _unplayable(data, tid):
+    """Why a playlist item can't be played here (None when it can).
+    'region' (COUNTRY_RESTRICTED, the usual one), 'local' (a file on the owner's computer),
+    'episode' (a podcast episode), 'unavailable' (removed or not released)."""
+    uri = data.get('uri') or ''
+    if uri.startswith('spotify:local:'):
+        return 'local'
+    if uri.startswith('spotify:episode:'):
+        return 'episode'
+    play = data.get('playability') or {}
+    if not tid:
+        return 'unavailable'
+    if play.get('playable') is False:
+        return 'region' if play.get('reason') == 'COUNTRY_RESTRICTED' else 'unavailable'
+    return None
+
+
+def _local_title(uri):
+    """spotify:local:Artist:Album:Title:Seconds → Title"""
+    parts = (uri or '').split(':')
+    if len(parts) >= 5 and parts[1] == 'local':
+        from urllib.parse import unquote_plus
+        return unquote_plus(parts[4]) or None
+    return None
+
+
 def _progress(done, total):
     print(f'__PROGRESS__ {done} {total}', file=sys.stderr, flush=True)
 
@@ -54,24 +83,30 @@ def playlist(pid):
     images = (info.get('images') or {}).get('items') or []
     cover = _best(images[0].get('sources'), prefer=640) if images else None
     _progress(0, total)  # the size is known before the first page: the bar can start filling
-    tracks = []
+    tracks, skipped = [], []
+    pos = 0  # place in the playlist, counting the tracks that can't be played too
     for page in pl.paginate_playlist():
         for it in page.get('items') or []:
             data = ((it.get('itemV2') or {}).get('data')) or {}
-            tid = _track_id(data.get('uri'))
-            if not tid or (data.get('playability') or {}).get('playable') is False:
-                continue
             album = data.get('albumOfTrack') or {}
-            tracks.append({
-                'id': tid,
-                'title': data.get('name') or tid,
+            entry = {
+                'pos': pos,
+                'title': data.get('name'),
                 'artist': _artists(data),
+                'album': album.get('name') or None,
                 'duration': round(((data.get('trackDuration') or {}).get('totalMilliseconds') or 0) / 1000) or None,
                 'cover': _best((album.get('coverArt') or {}).get('sources')) or cover,
-            })
-        _progress(len(tracks), total)
+            }
+            pos += 1
+            tid = _track_id(data.get('uri'))
+            reason = _unplayable(data, tid)
+            if reason:
+                skipped.append({**entry, 'id': tid, 'title': entry['title'] or _local_title(data.get('uri')), 'reason': reason})
+                continue
+            tracks.append({**entry, 'id': tid, 'title': entry['title'] or tid})
+        _progress(pos, total)
     return {'kind': 'playlist', 'title': info.get('name') or 'Spotify', 'cover': cover,
-            'description': _text(info.get('description')), 'total': total, 'tracks': tracks}
+            'description': _text(info.get('description')), 'total': total, 'tracks': tracks, 'skipped': skipped}
 
 
 def album(aid):
@@ -81,22 +116,29 @@ def album(aid):
     cover = _best((info.get('coverArt') or {}).get('sources'))
     total = ((info.get('tracksV2') or {}).get('totalCount')) or 0
     _progress(0, total)
-    tracks = []
+    tracks, skipped = [], []
+    pos = 0
     for page in al.paginate_album():
         for it in page or []:
             data = it.get('track') or it
-            tid = _track_id(data.get('uri'))
-            if not tid or (data.get('playability') or {}).get('playable') is False:
-                continue
-            tracks.append({
-                'id': tid,
-                'title': data.get('name') or tid,
+            entry = {
+                'pos': pos,
+                'title': data.get('name'),
                 'artist': _artists(data),
+                'album': info.get('name') or None,
                 'duration': round(((data.get('duration') or {}).get('totalMilliseconds') or 0) / 1000) or None,
                 'cover': cover,  # an album's tracks share its cover
-            })
-        _progress(len(tracks), total)
-    return {'kind': 'album', 'title': info.get('name') or 'Spotify', 'cover': cover, 'total': total, 'tracks': tracks}
+            }
+            pos += 1
+            tid = _track_id(data.get('uri'))
+            reason = _unplayable(data, tid)
+            if reason:
+                skipped.append({**entry, 'id': tid, 'title': entry['title'] or '?', 'reason': reason})
+                continue
+            tracks.append({**entry, 'id': tid, 'title': entry['title'] or tid})
+        _progress(pos, total)
+    return {'kind': 'album', 'title': info.get('name') or 'Spotify', 'cover': cover, 'total': total,
+            'tracks': tracks, 'skipped': skipped}
 
 
 def main():

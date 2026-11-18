@@ -181,6 +181,10 @@ export function registerIpcHandlers(
     data instanceof Uint8Array ? libraryService.setCustomCover(str(id), Buffer.from(data)) : false
   );
   ipcMain.handle('library:clearCover', async (_, id: unknown) => libraryService.clearCustomCover(str(id)));
+  ipcMain.handle('library:restoreSkipped', async (_, id: unknown, key: unknown, url: unknown) =>
+    libraryService.restoreSkipped(str(id), str(key), str(url))
+  );
+  ipcMain.handle('library:dismissSkipped', async (_, id: unknown, key: unknown) => libraryService.dismissSkipped(str(id), str(key)));
   // Picks a picture for a playlist cover. Formats Chromium can't draw (TIFF, HEIC, ...) are
   // turned into PNG with the bundled ffmpeg first; the renderer then crops it to a square.
   ipcMain.handle('library:pickCover', async (event) => {

@@ -196,6 +196,8 @@ export interface LibraryItem {
   filePath?: string;
   source: MediaSource | 'local';
   isVideo?: boolean;
+  /** Place in the playlist it was imported from (keeps replacements of skipped tracks in order) */
+  pos?: number;
 }
 
 export interface LibraryPlaylist {
@@ -209,6 +211,10 @@ export interface LibraryPlaylist {
   customCover?: string;
   description?: string;
   items: LibraryItem[];
+  /** Tracks of the source list that couldn't be imported and still need a look */
+  skipped?: SkippedTrack[];
+  /** Keys of skipped tracks the user replaced or chose to ignore (a refresh won't bring them back) */
+  skippedDone?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -225,6 +231,29 @@ export interface CatalogEntry {
   viewCount?: number;
   /** Live stream: can be played but not downloaded (it never ends). */
   isLive?: boolean;
+  /** Place in the source playlist (0-based), counting tracks that were skipped. */
+  pos?: number;
+}
+
+/** Why a track of an imported playlist couldn't be brought in. */
+export type SkipReason = 'region' | 'local' | 'episode' | 'unavailable';
+
+/**
+ * A track the platform lists but won't play here (on Spotify usually "not available in your
+ * country"). The library keeps its details so the user can add a YouTube copy at its place.
+ */
+export interface SkippedTrack {
+  /** Stable id: the platform's track id, or position + title */
+  key: string;
+  pos: number;
+  title: string;
+  artist?: string;
+  album?: string;
+  duration?: number;
+  cover?: string;
+  /** The track's page on the platform, when it has one */
+  url?: string;
+  reason: SkipReason;
 }
 
 export interface CatalogList {
@@ -240,6 +269,8 @@ export interface CatalogList {
   cover?: string;
   description?: string;
   entries: CatalogEntry[];
+  /** Tracks in the list that can't be played here (Spotify) */
+  skipped?: SkippedTrack[];
   /** Total items in the source list when more exist than were returned. */
   totalCount?: number;
 }
@@ -339,6 +370,10 @@ export interface ElectronAPI {
   /** Saves the square JPEG the renderer cropped as the playlist's own cover. */
   librarySetCover: (id: string, jpeg: Uint8Array) => Promise<boolean>;
   libraryClearCover: (id: string) => Promise<void>;
+  /** Adds a YouTube link in place of a skipped track, at the track's place in the playlist. */
+  libraryRestoreSkipped: (id: string, key: string, youtubeUrl: string) => Promise<{ success: boolean; position?: number; error?: 'notFound' | 'badUrl' }>;
+  /** "Ignore": the skipped track is no longer listed. */
+  libraryDismissSkipped: (id: string, key: string) => Promise<void>;
   /** Import progress: tracks read so far, and the list's size when known. */
   onLibraryImportProgress: (callback: (p: { done: number; total?: number }) => void) => () => void;
   onLibraryChanged: (callback: () => void) => () => void;

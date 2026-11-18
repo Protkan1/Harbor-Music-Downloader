@@ -1,4 +1,4 @@
-import { CatalogEntry, CatalogList, CatalogResult } from '../../shared/types';
+import { CatalogEntry, CatalogList, CatalogResult, SkippedTrack } from '../../shared/types';
 import { isAppleCollection, isSoundCloudSet, isSpotifyCollection, isYouTubePlaylist, searchQueryFor, youTubeId } from '../../shared/urls';
 import { spawn } from 'child_process';
 import { UTF8_ENV, killTree, readLines, runYtDlpJson, runYtDlpLines } from './processUtils';
@@ -178,7 +178,21 @@ export class CatalogService {
             artist: t.artist ?? undefined,
             duration: t.duration ?? undefined,
             thumbnail: t.cover ?? d.cover ?? undefined,
+            pos: typeof t.pos === 'number' ? t.pos : undefined,
           }));
+          const skipped: SkippedTrack[] = (Array.isArray(d.skipped) ? d.skipped : [])
+            .filter((s: any) => typeof s?.pos === 'number')
+            .map((s: any) => ({
+              key: s.id ? `sp:${s.id}` : `pos:${s.pos}:${s.title ?? ''}`,
+              pos: s.pos,
+              title: s.title || '?',
+              artist: s.artist ?? undefined,
+              album: s.album ?? undefined,
+              duration: s.duration ?? undefined,
+              cover: s.cover ?? undefined,
+              url: s.id ? `https://open.spotify.com/track/${s.id}` : undefined,
+              reason: ['region', 'local', 'episode'].includes(s.reason) ? s.reason : 'unavailable',
+            }));
           const cover = spotifyDesignedCover(d.cover);
           resolve({
             success: true,
@@ -190,6 +204,7 @@ export class CatalogService {
               cover,
               description: cleanText(d.description),
               entries,
+              skipped,
             },
           });
         } catch (err: any) {
@@ -232,18 +247,27 @@ export class CatalogService {
 
     const cover = this.pickSpotifyImage(entity);
     const entries: CatalogEntry[] = [];
-    for (const t of entity.trackList) {
-      const trackId = typeof t.uri === 'string' ? t.uri.split(':').pop() : undefined;
-      if (!trackId || t.isPlayable === false) continue;
-      entries.push({
-        id: trackId,
-        url: `https://open.spotify.com/track/${trackId}`,
-        title: t.title || trackId,
-        artist: typeof t.subtitle === 'string' ? t.subtitle.replace(/ /g, ' ') : undefined,
-        duration: typeof t.duration === 'number' ? Math.round(t.duration / 1000) : undefined,
-        thumbnail: cover,
-      });
-    }
+    const skipped: SkippedTrack[] = [];
+    entity.trackList.forEach((t: any, pos: number) => {
+      const trackId = typeof t.uri === 'string' && t.uri.startsWith('spotify:track:') ? t.uri.split(':').pop() : undefined;
+      const artist = typeof t.subtitle === 'string' ? t.subtitle.replace(/\u00a0/g, ' ') : undefined;
+      const duration = typeof t.duration === 'number' ? Math.round(t.duration / 1000) : undefined;
+      if (!trackId || t.isPlayable === false) {
+        // The embed page does not say why; usually "not available in your country"
+        skipped.push({
+          key: trackId ? `sp:${trackId}` : `pos:${pos}:${t.title ?? ''}`,
+          pos,
+          title: t.title || '?',
+          artist,
+          duration,
+          cover,
+          url: trackId ? `https://open.spotify.com/track/${trackId}` : undefined,
+          reason: typeof t.uri === 'string' && t.uri.startsWith('spotify:local:') ? 'local' : 'unavailable',
+        });
+        return;
+      }
+      entries.push({ id: trackId, url: `https://open.spotify.com/track/${trackId}`, title: t.title || trackId, artist, duration, thumbnail: cover, pos });
+    });
     if (entries.length === 0) return { success: false, errorCode: 'notFound' };
 
     return {
@@ -256,6 +280,7 @@ export class CatalogService {
         cover: spotifyDesignedCover(cover),
         description: cleanText(entity.description),
         entries,
+        skipped,
       },
     };
   }

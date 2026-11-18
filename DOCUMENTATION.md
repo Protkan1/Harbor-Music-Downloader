@@ -322,6 +322,13 @@ npm run dev
 
 ## 8. 📋 Yapılan İyileştirmeler ve Sürüm Geçmişi (Changelog)
 
+### Sürüm 2.13.0 (2026-11-18) - Kullanılamayan şarkılar, Yenile açıklamayı doldurur
+- **Kullanılamayan şarkılar:** Spotify'ın burada çalmadığı şarkılar (çoğunlukla "bölgende kullanılamıyor") artık sessizce atlanmıyor. Motorun `spotify-list` çıktısında `skipped` listesi var: kapak, ad, sanatçı, albüm, süre, listedeki sıra (`pos`) ve neden (`region`/`local`/`episode`/`unavailable`). Embed yedeği de `isPlayable: false` parçaları aynı biçimde verir.
+- Liste sayfasında sarı bir bilgi alanı ("Spotify listesinde burada kullanılamayan N şarkı var...") ve **İncele** düğmesi. Açılan pencerede her şarkı kapağı ve meta verileriyle listelenir; **YouTube'da ara** ilk 5 sonucu getirir (süresi ±5 sn uyanlar "Süre uyuyor" ile işaretlenir, ▶ ile dinlenebilir), ya da YouTube linki yapıştırılır. **Ekle**, YouTube kopyasını şarkının Spotify'daki ad/sanatçı/süre/kapağıyla ve **listedeki kendi sırasına** koyar (`LibraryService.restoreSkipped` + `placeByPos`). **Yoksay** listeden düşürür. Eklenen/yoksayılanlar `skippedDone`'da tutulur, Yenile onları geri getirmez.
+- Her içe aktarılan parça kaynak listedeki sırasını (`pos`) saklar; Yenile'nin bulduğu yeni parçalar da sona değil kendi sırasına girer. 2.12 ve öncesinde içe aktarılan listeler ilk Yenile'de sıra bilgisini ve atlanan şarkı listesini alır.
+- **Yenile, boş açıklamayı platformdan doldurur** (kullanıcının yazdığı açıklamaya dokunmaz).
+- İlerleme çubuğu artık okunan parça yerine okunan sıra sayısıyla ilerler, böylece atlanan şarkılar varken de sona ulaşır.
+
 ### Sürüm 2.12.0 (2026-11-18) - Kapak ve açıklama düzenleme, içe aktarma ilerleme çubuğu
 - **İçe aktarma ilerleme çubuğu:** Kitaplık'ta link içe aktarılırken alan altında dolan bir çubuk ve "343 / 596 parça okundu" yazısı; toplam bilinmiyorsa kayan çubuk. Çubuk dolunca işlem bitmiştir ("Tamamlandı · N parça"). Yerel içe aktarma da aynı çubuğu kullanır.
 - **Liste düzenleme penceresi:** ad, açıklama (en fazla 1000 karakter) ve kapak resmi. Kapak; PNG, JPEG, WebP, AVIF, GIF, BMP, ICO, SVG ve ffmpeg üzerinden HEIC/HEIF, TIFF ve diğerleri. Kapağa tıklayınca da açılır. "Kapağı kaldır" platform kapağına ya da mozaiğe döndürür.

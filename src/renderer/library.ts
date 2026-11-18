@@ -10,6 +10,7 @@ import { t } from './i18n';
 import { PlayItem, playQueue } from './playerbar';
 import { fadeIn } from './transitions';
 import { openPlaylistEditor } from './playlistEdit';
+import { openSkippedTracks } from './skippedTracks';
 
 const SOURCE_LABEL: Record<string, string> = {
   youtube: 'YouTube',
@@ -334,6 +335,21 @@ export function setupLibrary() {
     info.append(actions);
     head.append(info);
     detail.append(head);
+
+    // Tracks the platform wouldn't let us import: say so, and offer to fix them
+    if (p.skipped?.length) {
+      const source = SOURCE_LABEL[p.origin?.source ?? ''] || originLabel(p);
+      const note = el('div', 'lib-skipped-note');
+      note.setAttribute('role', 'status');
+      const icon = el('span', 'lib-skipped-icon');
+      icon.innerHTML =
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'; // static
+      const review = el('button', 'btn-browse', t('libSkippedReview'));
+      review.type = 'button';
+      review.addEventListener('click', () => openSkippedTracks(p, source));
+      note.append(icon, el('span', 'lib-skipped-text', t('libSkippedNote', { source, n: p.skipped.length })), review);
+      detail.append(note);
+    }
 
     if (!p.items.length) {
       detail.append(el('p', 'lib-empty-list', t('libEmptyList')));
