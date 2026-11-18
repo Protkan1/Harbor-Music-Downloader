@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
+
+PackageIdentifier: Protkan1.Harbor
+PackageVersion: 2.11.0
+InstallerType: nullsoft
+Scope: user
+InstallModes:
+- interactive
+- silent
+UpgradeBehavior: install
+ReleaseDate: 2026-11-18
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/Protkan1/Harbor-Music-Downloader/releases/download/v2.11.0/Harbor-Setup-2.11.0.exe
+  InstallerSha256: 92BB3690FB3D7C6399736B766093671E9679F3D0A956CDF19A8842E9CE653EE5
+ManifestType: installer
+ManifestVersion: 1.28.0
