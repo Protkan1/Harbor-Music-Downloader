@@ -159,9 +159,21 @@ export class DownloadManager {
     return { taskId, success: true };
   }
 
+  private powerSaverActive: () => boolean = () => false;
+  /** Battery saver: one download at a time (fewer ffmpeg/yt-dlp processes at once). */
+  public setPowerSaver(isActive: () => boolean) {
+    this.powerSaverActive = isActive;
+  }
+
   private get maxConcurrent(): number {
     const n = Number(this.settingsService.getSettings().maxConcurrentDownloads);
-    return Number.isFinite(n) && n >= 1 ? Math.floor(n) : DEFAULT_CONCURRENCY;
+    const limit = Number.isFinite(n) && n >= 1 ? Math.floor(n) : DEFAULT_CONCURRENCY;
+    return this.powerSaverActive() ? 1 : limit;
+  }
+
+  /** Re-check the queue (e.g. battery saver turned off: more downloads may start now). */
+  public refreshQueue() {
+    this.pump();
   }
 
   private pump() {

@@ -11,6 +11,8 @@ import { ProbeService } from './services/ProbeService';
 import { LibraryService } from './services/LibraryService';
 import { registerIpcHandlers } from './ipcHandlers';
 import { SetupService } from './services/SetupService';
+import { AppUpdateService } from './services/AppUpdateService';
+import { PowerService } from './services/PowerService';
 import { initTools } from './services/tools';
 
 // Settings, history, library and covers live in %APPDATA%\Harbor. Before the rename they
@@ -22,6 +24,12 @@ if (!app.commandLine.hasSwitch('user-data-dir')) {
   const legacy = path.join(appData, 'spotdl-ytdlp-gui');
   app.setPath('userData', fs.existsSync(legacy) ? legacy : path.join(appData, 'Harbor'));
 }
+
+// Chromium pauses a muted video when the window is hidden (a power-saving default for web
+// pages). 1080p+ YouTube streams play their picture in a muted <video> next to a separate
+// <audio>, so minimizing Harbor stopped the video and, with it, the sound. A media player has
+// to keep playing in the background like any other.
+app.commandLine.appendSwitch('disable-features', 'BackgroundVideoPauseOptimization');
 
 let mainWindow: BrowserWindow | null = null;
 // Delay instantiation until app is ready (app.getPath requires app to be ready)
@@ -59,6 +67,8 @@ function createWindow() {
       // A media player: resolving a stream can take longer than Chromium's ~5 s click
       // activation window, after which autoplay would be refused
       autoplayPolicy: 'no-user-gesture-required',
+      // A media player: keep timers (audio/video sync, the player bar) running while minimized
+      backgroundThrottling: false,
     },
     // macOS & Windows modern glass backdrop hints
     vibrancy: 'under-window',
@@ -134,6 +144,17 @@ app.whenReady().then(() => {
   const setupService = new SetupService(settingsService, updateService, (p) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('setup:progress', p);
   });
+  const appUpdateService = new AppUpdateService(settingsService, () => downloadManager.isIdle());
+  appUpdateService.onChange((s) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('appupdate:changed', s);
+  });
+  const powerService = new PowerService(settingsService);
+  downloadManager.setPowerSaver(() => powerService.isActive());
+  streamManager.setPreferH264(() => powerService.isActive());
+  powerService.onChange((s) => {
+    downloadManager.refreshQueue();
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('power:changed', s);
+  });
   registerIpcHandlers(
     settingsService,
     downloadManager,
@@ -143,7 +164,9 @@ app.whenReady().then(() => {
     updateService,
     probeService,
     libraryService,
-    setupService
+    setupService,
+    appUpdateService,
+    powerService
   );
   libraryService.onChange(() => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('library:changed');

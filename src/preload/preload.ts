@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron';
-import type { ElectronAPI, DownloadProgressPayload, DownloadTaskRequest, AppSettings, UpdateStatus, LibraryItem, SubtitleTrack, SetupProgress } from '../shared/types';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
+import type { ElectronAPI, DownloadProgressPayload, DownloadTaskRequest, AppSettings, UpdateStatus, LibraryItem, SubtitleTrack, SetupProgress, AppUpdateStatus, PowerState } from '../shared/types';
 
 const api: ElectronAPI = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -8,6 +8,7 @@ const api: ElectronAPI = {
   startDownload: (request: DownloadTaskRequest) => ipcRenderer.invoke('download:start', request),
   cancelDownload: (taskId: string) => ipcRenderer.invoke('download:cancel', taskId),
   openFolder: (taskId?: string) => ipcRenderer.invoke('system:openFolder', taskId),
+  focusWindow: () => ipcRenderer.invoke('window:focus'),
   deleteDownloadedFile: (taskId: string) => ipcRenderer.invoke('download:deleteFile', taskId),
   checkDependencies: () => ipcRenderer.invoke('system:checkDeps'),
   resolveStreamUrl: (url: string) => ipcRenderer.invoke('stream:resolve', url),
@@ -39,6 +40,24 @@ const api: ElectronAPI = {
       ipcRenderer.removeListener('library:changed', handler);
     };
   },
+  getAppUpdateStatus: () => ipcRenderer.invoke('appupdate:status'),
+  checkAppUpdate: () => ipcRenderer.invoke('appupdate:check'),
+  onAppUpdateStatus: (callback: (s: AppUpdateStatus) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, s: AppUpdateStatus) => callback(s);
+    ipcRenderer.on('appupdate:changed', handler);
+    return () => {
+      ipcRenderer.removeListener('appupdate:changed', handler);
+    };
+  },
+  getPowerState: () => ipcRenderer.invoke('power:state'),
+  onPowerState: (callback: (s: PowerState) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, s: PowerState) => callback(s);
+    ipcRenderer.on('power:changed', handler);
+    return () => {
+      ipcRenderer.removeListener('power:changed', handler);
+    };
+  },
+  trimMemory: () => webFrame.clearCache(),
   getSetupStatus: () => ipcRenderer.invoke('setup:status'),
   runSetup: () => ipcRenderer.invoke('setup:run'),
   onSetupProgress: (callback: (p: SetupProgress) => void) => {

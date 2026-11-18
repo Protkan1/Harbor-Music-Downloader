@@ -10,6 +10,8 @@ import { UpdateService } from './services/UpdateService';
 import { ProbeService } from './services/ProbeService';
 import { LibraryService } from './services/LibraryService';
 import { SetupService } from './services/SetupService';
+import { AppUpdateService } from './services/AppUpdateService';
+import { PowerService } from './services/PowerService';
 import { SubtitleService } from './services/SubtitleService';
 
 const subtitleService = new SubtitleService();
@@ -26,8 +28,13 @@ export function registerIpcHandlers(
   updateService: UpdateService,
   probeService: ProbeService,
   libraryService: LibraryService,
-  setupService: SetupService
+  setupService: SetupService,
+  appUpdateService: AppUpdateService,
+  powerService: PowerService
 ) {
+  ipcMain.handle('appupdate:status', async () => appUpdateService.getStatus());
+  ipcMain.handle('appupdate:check', async () => appUpdateService.check());
+  ipcMain.handle('power:state', async () => powerService.getState());
   ipcMain.handle('setup:status', async () => setupService.status());
   ipcMain.handle('setup:run', async () => setupService.run());
 
@@ -37,7 +44,12 @@ export function registerIpcHandlers(
 
   ipcMain.handle('settings:save', async (_, newSettings: Partial<AppSettings>) => {
     if (!newSettings || typeof newSettings !== 'object') return settingsService.getSettings();
-    return settingsService.saveSettings(newSettings);
+    if ('powerSaver' in newSettings && !['off', 'battery', 'on'].includes(newSettings.powerSaver as string)) {
+      delete newSettings.powerSaver;
+    }
+    const saved = settingsService.saveSettings(newSettings);
+    if ('powerSaver' in newSettings) powerService.emitIfChanged();
+    return saved;
   });
 
   ipcMain.handle('stream:resolve', async (_, url: unknown) => {
@@ -78,6 +90,15 @@ export function registerIpcHandlers(
 
   ipcMain.handle('download:cancel', async (_, taskId: string) => {
     return downloadManager.cancelTask(taskId);
+  });
+
+  // Bring the window forward (e.g. "back to tab" in the picture-in-picture window)
+  ipcMain.handle('window:focus', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
   });
 
   ipcMain.handle('system:openFolder', async (_, taskId?: string) => {

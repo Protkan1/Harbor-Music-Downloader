@@ -30,7 +30,8 @@ Harbor, [yt-dlp](https://github.com/yt-dlp/yt-dlp) ve [spotDL](https://github.co
 - **Hesapsız keşfet.** Türkiye ve Dünya Top 100, yeni çıkanlar, tür listeleri ve arama.
 - **Kendi kitaplığın.** Müzik ve videoyu karıştıran listeler oluştur; YouTube, Spotify, SoundCloud veya Apple Music listelerini içe aktar ya da yerel müziklerini M3U/M3U8/PLS dosyası, iTunes XML veya klasörden ekle.
 - **Geçmiş.** Her indirme kapağı, süresi ve kaynağıyla; tek tıkla yeniden indir veya klasörünü aç.
-- **Kendini güncel tutar.** Siteler sık değiştiği için yt-dlp arka planda otomatik güncellenir.
+- **Kendini güncel tutar.** Harbor açılışta yeni sürümü denetler, indirip kurar ve kendiliğinden yeniden başlar; GitHub'a gidip exe indirmen gerekmez. Siteler sık değiştiği için yt-dlp da arka planda güncellenir.
+- **Pil tasarrufu.** Pildeyken (ya da her zaman) bulanıklık efektlerini ve animasyonları kapatır, videoları 720p ve donanımla çözülen H.264 ile başlatır, aynı anda tek indirme yapar. Midnight temasında boştaki işlemci kullanımı tek çekirdeğin %75'inden %0,5'ine iner.
 - **Dört tema** (Clay, Midnight, Ember, Glacier), Türkçe ve İngilizce arayüz, akıcı sayfa geçişleri ve `prefers-reduced-motion` (animasyonları azalt) desteği.
 
 | Keşfet | İzleme sayfası |

@@ -27,6 +27,8 @@ export class SettingsService {
       autoUpdateYtDlp: true,
       lastYtDlpCheck: 0,
       defaultVideoHeight: 1080,
+      autoUpdateApp: true,
+      powerSaver: 'battery',
     };
 
     this.loadSettings();

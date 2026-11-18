@@ -16,6 +16,29 @@ export interface AppSettings {
   defaultVideoHeight: number;
   /** App version whose first-run setup finished (tools verified, yt-dlp updated). */
   setupDoneFor?: string;
+  /** Harbor updates itself from GitHub Releases on start (default on). */
+  autoUpdateApp: boolean;
+  /** Battery saver: off, on battery (default), always */
+  powerSaver: PowerSaverMode;
+}
+
+export type PowerSaverMode = 'off' | 'battery' | 'on';
+export interface PowerState {
+  mode: PowerSaverMode;
+  onBattery: boolean;
+  /** Battery saver is in effect right now */
+  active: boolean;
+}
+
+/** Harbor's own update (AppUpdateService) */
+export interface AppUpdateStatus {
+  state: 'idle' | 'disabled' | 'checking' | 'none' | 'downloading' | 'downloaded' | 'installing' | 'error';
+  current: string;
+  version?: string;
+  percent?: number;
+  waitingForDownloads?: boolean;
+  checkedAt?: number;
+  error?: string;
 }
 
 /** First-run setup (SetupService) */
@@ -276,6 +299,7 @@ export interface ElectronAPI {
   cancelDownload: (taskId: string) => Promise<boolean>;
   onDownloadProgress: (callback: (data: DownloadProgressPayload) => void) => () => void;
   openFolder: (taskId?: string) => Promise<void>;
+  focusWindow: () => Promise<void>;
   deleteDownloadedFile: (taskId: string) => Promise<{ success: boolean; errorCode?: 'noPath' | 'notOnDisk' | 'failed'; error?: string }>;
   checkDependencies: () => Promise<DependencyStatus>;
   resolveStreamUrl: (url: string) => Promise<{ success: boolean; data?: StreamMediaInfo; error?: string; errorCode?: StreamErrorCode }>;
@@ -298,6 +322,13 @@ export interface ElectronAPI {
   libraryImportLocal: (kind: 'file' | 'folder') => Promise<{ success: boolean; canceled?: boolean; playlist?: LibraryPlaylist; missing?: number; error?: string }>;
   onLibraryImportProgress: (callback: (p: { done: number; total: number }) => void) => () => void;
   onLibraryChanged: (callback: () => void) => () => void;
+  getAppUpdateStatus: () => Promise<AppUpdateStatus>;
+  checkAppUpdate: () => Promise<AppUpdateStatus>;
+  onAppUpdateStatus: (callback: (s: AppUpdateStatus) => void) => () => void;
+  getPowerState: () => Promise<PowerState>;
+  onPowerState: (callback: (s: PowerState) => void) => () => void;
+  /** Frees the renderer's image/resource caches (battery saver, window hidden) */
+  trimMemory: () => void;
   getSetupStatus: () => Promise<SetupStatus>;
   runSetup: () => Promise<SetupResult>;
   onSetupProgress: (callback: (p: SetupProgress) => void) => () => void;

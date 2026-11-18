@@ -30,7 +30,8 @@ Harbor is a front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [spotDL
 - **Explore without an account.** Turkey and global top 100, new releases and genre lists, plus search.
 - **Your own library.** Create playlists that mix music and video, import playlists from YouTube, Spotify, SoundCloud or Apple Music, or bring in local music from M3U/M3U8/PLS files, iTunes XML or a folder.
 - **History.** Every download with its cover, length and source; re-download or open its folder in one click.
-- **Keeps itself working.** yt-dlp is updated automatically in the background, since sites change often.
+- **Keeps itself up to date.** Harbor checks for a new version on start, installs it and restarts by itself; no trips to GitHub for a new installer. yt-dlp is updated in the background too, since sites change often.
+- **Battery saver.** On battery (or always) it turns off blur effects and animations, starts videos at 720p with hardware-decoded H.264 and runs one download at a time. On the Midnight theme, idle CPU drops from 75% of a core to 0.5%.
 - **Four themes** (Clay, Midnight, Ember, Glacier), Turkish and English UI, smooth view transitions, and full `prefers-reduced-motion` support.
 
 | Explore | Watch page |

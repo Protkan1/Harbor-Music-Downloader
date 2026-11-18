@@ -636,6 +636,14 @@ function setupMediaSession() {
   set('seekto', (d) => {
     if (typeof d.seekTime === 'number') media().currentTime = d.seekTime;
   });
+  // ±10 s buttons (picture-in-picture window, media overlays)
+  const seekBy = (delta: number) => {
+    const m = media();
+    if (!isFinite(m.duration)) return;
+    m.currentTime = Math.min(Math.max(0, m.currentTime + delta), m.duration - 0.25);
+  };
+  set('seekbackward', (d) => seekBy(-(d.seekOffset || 10)));
+  set('seekforward', (d) => seekBy(d.seekOffset || 10));
 }
 
 function updateMediaSession() {

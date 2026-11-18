@@ -14,6 +14,8 @@
  */
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+/** Plain swaps: the user asked for less motion, or battery saver is on */
+const calm = () => reduceMotion.matches || document.body.classList.contains('power-saver');
 export const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
 export const EASE_DRAWER = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
@@ -36,7 +38,7 @@ let running: ViewTransitionLike | null = null;
  * @param morphFrom an element in the current page that should morph into #watch-screen
  */
 export function withViewTransition(update: () => void, dir: Direction = 'fade', morphFrom?: HTMLElement | null) {
-  if (!supportsVT || reduceMotion.matches || document.hidden) {
+  if (!supportsVT || calm() || document.hidden) {
     update();
     return;
   }
@@ -75,7 +77,7 @@ export function tabDirection(from: string, to: string): Direction {
  * Calling it again mid-animation continues from the current on-screen height.
  */
 export function animateHeight(el: HTMLElement, mutate: () => void, duration = 340) {
-  if (reduceMotion.matches) {
+  if (calm()) {
     mutate();
     return;
   }
@@ -93,7 +95,7 @@ export function animateHeight(el: HTMLElement, mutate: () => void, duration = 34
 
 /** Collapse `el` to zero height (exit is faster than enter), then run `after` (e.g. hide it). */
 export function collapse(el: HTMLElement, after: () => void, duration = 220) {
-  if (reduceMotion.matches || el.hidden) {
+  if (calm() || el.hidden) {
     after();
     return;
   }
@@ -116,7 +118,7 @@ export function collapse(el: HTMLElement, after: () => void, duration = 220) {
 
 /** Content swap inside a stable container: a short fade + rise, no layout animation. */
 export function fadeIn(el: HTMLElement, distance = 6, duration = 260) {
-  if (reduceMotion.matches) return;
+  if (calm()) return;
   el.animate(
     [
       { opacity: 0, transform: `translateY(${distance}px)` },
@@ -131,7 +133,7 @@ export function fadeIn(el: HTMLElement, distance = 6, duration = 260) {
  * capped so the whole group is in within ~350 ms and never blocks interaction.
  */
 export function staggerIn(items: HTMLElement[], max = 12) {
-  if (reduceMotion.matches) return;
+  if (calm()) return;
   items.slice(0, max).forEach((item, i) => {
     const delay = Math.round(28 * i - 0.9 * i * i); // 0, 27, 52, 76, 98 ... flattens out
     item.animate(

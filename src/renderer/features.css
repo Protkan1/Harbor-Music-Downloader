@@ -882,3 +882,27 @@ button:disabled {
 @media (prefers-reduced-motion: reduce) {
   .setup-step[data-state="running"] .setup-mark { animation-duration: 2.4s; }
 }
+
+/* ── "Updating Harbor" dialog (appupdate.ts) ── */
+.appupdate-track {
+  align-self: stretch;
+  height: 6px;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: var(--chip-hover);
+  overflow: hidden;
+}
+.appupdate-bar {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--accent-cyan);
+  transition: width 300ms ease;
+}
+.appupdate-text {
+  align-self: stretch;
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

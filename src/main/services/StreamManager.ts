@@ -9,6 +9,12 @@ const MAX_FORMATS = 8;
 const TRANSLATION_LANGS = ['tr', 'en', 'de', 'fr', 'es', 'it', 'pt', 'ru', 'ar', 'ja', 'ko', 'zh-Hans', 'hi', 'nl', 'pl', 'uk', 'az'];
 
 export class StreamManager {
+  /** Battery saver: prefer H.264 (hardware-decoded almost everywhere) over VP9/AV1. */
+  private preferH264: () => boolean = () => false;
+  public setPreferH264(fn: () => boolean) {
+    this.preferH264 = fn;
+  }
+
   /**
    * Resolves a media URL (YouTube, Spotify, SoundCloud, etc.) into direct playable streams.
    */
@@ -101,10 +107,13 @@ export class StreamManager {
     // Merge both lists; for each height keep the best option. At equal height & fps a
     // progressive stream wins over a higher-bitrate video-only one (no audio sync needed).
     const candidates = [...progressive.map((f: any) => ({ f, progressive: true })), ...videoOnly.map((f: any) => ({ f, progressive: false }))];
+    const h264 = this.preferH264();
+    const isAvc = (f: any) => (/^avc/i.test(f.vcodec ?? '') ? 1 : 0);
     candidates.sort(
       (a, b) =>
         (b.f.height || 0) - (a.f.height || 0) ||
         (b.f.fps || 0) - (a.f.fps || 0) ||
+        (h264 ? isAvc(b.f) - isAvc(a.f) : 0) ||
         (a.progressive === b.progressive ? 0 : a.progressive ? -1 : 1) ||
         (b.f.tbr || 0) - (a.f.tbr || 0)
     );

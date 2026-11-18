@@ -6,6 +6,7 @@ import { openStream } from './player';
 import { playQueue } from './playerbar';
 import { addToLibraryMenu } from './library';
 import { staggerIn } from './transitions';
+import { isPowerSaver } from './power';
 
 interface Category {
   id: string;
@@ -246,7 +247,8 @@ export function setupExplore() {
     // Every visit fetches fresh results (charts and searches change); the old cards stay
     // on screen until the new ones are in, so reopening never flashes empty
     if (!loadedOnce) load();
-    else load(grid.children.length > 0, true);
+    // Battery saver: keep what was loaded (no network + re-render on every visit)
+    else if (!isPowerSaver()) load(grid.children.length > 0, true);
   });
   document.addEventListener('language-changed', () => {
     if (!loadedOnce) return;

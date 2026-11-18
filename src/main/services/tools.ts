@@ -72,7 +72,7 @@ export function ffmpegCommand(): string {
   return FFMPEG_DIR ? path.join(FFMPEG_DIR, `ffmpeg${exe}`) : 'ffmpeg';
 }
 
-/** The engine's own subcommand (spotdl / tagger / scan / selftest), or null when not bundled. */
-export function engineCommand(sub: 'spotdl' | 'tagger' | 'scan' | 'selftest'): ToolCommand | null {
+/** The engine's own subcommand (spotdl / spotify-list / tagger / scan / selftest), or null when not bundled. */
+export function engineCommand(sub: 'spotdl' | 'spotify-list' | 'tagger' | 'scan' | 'selftest'): ToolCommand | null {
   return ENGINE_PATH ? { cmd: ENGINE_PATH, prefix: [sub] } : null;
 }

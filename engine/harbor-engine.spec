@@ -6,7 +6,7 @@ from PyInstaller.utils.hooks import collect_all
 ROOT = os.path.abspath(os.path.join(SPECPATH, '..'))
 SCRIPTS = os.path.join(ROOT, 'scripts')
 
-datas, binaries, hiddenimports = [], [], ['tagger', 'scan_media', 'spotdl_fast']
+datas, binaries, hiddenimports = [], [], ['tagger', 'scan_media', 'spotdl_fast', 'spotify_list']
 # Packages that load modules or data files dynamically
 for pkg in ('spotdl', 'ytmusicapi', 'pykakasi', 'spotapi', 'SpotipyFree', 'syncedlyrics',
             'curl_cffi', 'certifi', 'yt_dlp_ejs', 'rich'):
@@ -17,7 +17,7 @@ for pkg in ('spotdl', 'ytmusicapi', 'pykakasi', 'spotapi', 'SpotipyFree', 'synce
 
 a = Analysis(
     [os.path.join(SPECPATH, 'harbor_engine.py')],
-    pathex=[SCRIPTS],
+    pathex=[SCRIPTS, SPECPATH],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,

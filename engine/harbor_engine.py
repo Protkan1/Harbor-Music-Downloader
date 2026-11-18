@@ -6,6 +6,7 @@ its own Python runtime), so users don't need Python, pip or any package installe
     harbor-engine spotdl  <args>   spotDL (with the faster Spotify lookups of spotdl_fast.py)
     harbor-engine tagger  <args>   scripts/tagger.py
     harbor-engine scan    <args>   scripts/scan_media.py
+    harbor-engine spotify-list <url>  full Spotify playlist/album as JSON (engine/spotify_list.py)
     harbor-engine selftest         imports everything once (first-run check)
 
 yt-dlp has to stay current because sites change often. The app can download a newer yt-dlp
@@ -45,7 +46,7 @@ def _use_updated_ytdlp():
 
 def main():
     if len(sys.argv) < 2:
-        print('usage: harbor-engine <yt-dlp|spotdl|tagger|scan|selftest> [args...]', file=sys.stderr)
+        print('usage: harbor-engine <yt-dlp|spotdl|spotify-list|tagger|scan|selftest> [args...]', file=sys.stderr)
         return 2
     command = sys.argv[1]
     sys.argv = [command] + sys.argv[2:]
@@ -62,6 +63,12 @@ def main():
         from spotdl.console import console_entry_point
         return console_entry_point()
 
+    if command == 'spotify-list':
+        import spotdl_fast
+        spotdl_fast._patch_spotapi()
+        import spotify_list
+        return spotify_list.main()
+
     if command == 'tagger':
         import tagger
         return tagger.main()
@@ -73,7 +80,7 @@ def main():
     if command == 'selftest':
         _use_updated_ytdlp()
         import yt_dlp, spotdl, mutagen, PIL  # noqa: F401
-        import spotdl_fast, tagger, scan_media  # noqa: F401
+        import spotdl_fast, tagger, scan_media, spotify_list  # noqa: F401
         from spotdl.console import console_entry_point  # noqa: F401
         print('ok', yt_dlp.version.__version__, spotdl.__version__)
         return 0

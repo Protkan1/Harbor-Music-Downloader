@@ -48,7 +48,7 @@ function attach(container: HTMLElement, activeSelector: string, className: strin
       height: active.offsetHeight,
     };
     controls?.stop();
-    if (!placed || !animated || reduceMotion.matches) {
+    if (!placed || !animated || reduceMotion.matches || document.body.classList.contains('power-saver')) {
       controls = animate(el, target, { duration: 0 });
       placed = true;
       return;

@@ -1,16 +1,19 @@
 import { CatalogEntry, CatalogList, CatalogResult } from '../../shared/types';
 import { isAppleCollection, isSoundCloudSet, isSpotifyCollection, isYouTubePlaylist, searchQueryFor, youTubeId } from '../../shared/urls';
-import { runYtDlpJson } from './processUtils';
+import { spawn } from 'child_process';
+import { UTF8_ENV, killTree, readLines, runYtDlpJson } from './processUtils';
+import { engineCommand } from './tools';
 
-/** Max items read from a YouTube playlist for the preview (flat listing is fast, but keep it bounded). */
-const YT_PLAYLIST_LIMIT = 500;
+/** Max items read from a YouTube/SoundCloud playlist (flat listing, ~100 items per request). */
+const YT_PLAYLIST_LIMIT = 5000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 /**
  * Lists the contents of playlists/albums (for the preview dialog) and runs YouTube
  * searches (for the Explore tab). No accounts or API keys involved:
  *  - YouTube: `yt-dlp --flat-playlist -J` (playlist pages, chart playlists, ytsearchN:)
- *  - Spotify: the public embed page, which carries the track list as JSON.
+ *  - Spotify: the engine's `spotify-list` (complete list, each track with its own cover);
+ *    without the engine, the public embed page (first 100 tracks, playlist cover only).
  */
 export class CatalogService {
   private cache = new Map<string, { at: number; data: CatalogList }>();
@@ -107,7 +110,51 @@ export class CatalogService {
 
   // ─────────────────────────────── Spotify ───────────────────────────────
 
+  /**
+   * Whole playlist/album through the engine (spotapi pages through the web player's API).
+   * null when the engine isn't there or the run failed, so the embed page is used instead.
+   */
+  private spotifyFull(url: string): Promise<CatalogResult | null> {
+    const engine = engineCommand('spotify-list');
+    if (!engine) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const out: Buffer[] = [];
+      let stderr = '';
+      const child = spawn(engine.cmd, [...engine.prefix, url], { shell: false, windowsHide: true, env: UTF8_ENV });
+      const timer = setTimeout(() => killTree(child), 5 * 60 * 1000);
+      child.stdout!.on('data', (d: Buffer) => out.push(d));
+      readLines(child.stderr!, (l) => {
+        if (!l.startsWith('__PROGRESS__')) stderr += l + '\n';
+      });
+      child.on('error', () => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        try {
+          const d = JSON.parse(Buffer.concat(out).toString('utf8'));
+          if (code !== 0 || !Array.isArray(d?.tracks) || d.tracks.length === 0) throw new Error(stderr.trim().split('\n').pop());
+          const entries: CatalogEntry[] = d.tracks.map((t: any) => ({
+            id: t.id,
+            url: `https://open.spotify.com/track/${t.id}`,
+            title: t.title,
+            artist: t.artist ?? undefined,
+            duration: t.duration ?? undefined,
+            thumbnail: t.cover ?? d.cover ?? undefined,
+          }));
+          resolve({ success: true, data: { source: 'spotify', kind: d.kind, title: d.title, thumbnail: d.cover ?? entries[0]?.thumbnail, entries } });
+        } catch (err: any) {
+          console.warn('[catalog] spotify-list failed, using the embed page:', err?.message);
+          resolve(null);
+        }
+      });
+    });
+  }
+
   private async spotifyCollection(url: string): Promise<CatalogResult> {
+    const full = await this.spotifyFull(url);
+    if (full) return full;
     const m = url.match(/\/(playlist|album)\/([A-Za-z0-9]+)/i);
     if (!m) return { success: false, errorCode: 'unsupported' };
     const type = m[1].toLowerCase() as 'playlist' | 'album';

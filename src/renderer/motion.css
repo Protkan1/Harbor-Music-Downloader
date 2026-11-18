@@ -166,3 +166,30 @@ html[data-vt="theme"] {
   .pb-cover img { transition: none; }
   :where(button:not(:disabled)):active { transform: none; }
 }
+
+/* ==========================================================================
+   Battery saver (body.power-saver, see power.ts / PowerService)
+   The most expensive things to keep drawing are blurred translucent layers (every frame
+   behind them is re-blurred) and endlessly animated decoration. Loading indicators stay.
+   ========================================================================== */
+body.power-saver {
+  *,
+  *::before,
+  *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* Animated background and ambient glows */
+  .mesh-bg-container,
+  .tcp-orb,
+  .brand-glow,
+  .modal-prism-orb { display: none !important; }
+  /* Decorative loops (status dots, shine sweeps, preview waves) stand still */
+  .status-dot,
+  .dep-pill::before,
+  [class*="shine"],
+  [class*="pulse"],
+  [class*="wave"] { animation: none !important; }
+  /* Images appear at once instead of fading (view transitions are skipped in transitions.ts) */
+  img { transition: none !important; }
+}

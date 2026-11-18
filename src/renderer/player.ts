@@ -12,6 +12,7 @@ import { requestFromOption } from './preview';
 import { addToLibraryMenu } from './library';
 import { attachVideoControls } from './videocontrols';
 import { withViewTransition } from './transitions';
+import { isPowerSaver } from './power';
 
 const hintOf = (e: CatalogEntry): StreamHint => ({ title: e.title, artist: e.artist, thumbnail: e.thumbnail });
 
@@ -108,32 +109,69 @@ export function setupPlayer() {
   });
 
   // ── Separate audio track sync (for video-only 1080p+ streams) ──
+  // Seeking used to be slow: the audio only started fetching after the video had finished
+  // seeking, and while it was still buffering a drift check re-seeked it 4× a second, so every
+  // check threw away its download and started a new one. Now both seek at the same moment,
+  // the video waits for the audio, and small drift is corrected by speed, not by seeking.
+  const drift = () => audioEl.currentTime - videoEl.currentTime;
+  const audioReady = () => !audioEl.seeking && audioEl.readyState >= 3;
+  /** The video was paused by us (waiting for the audio), not by the user */
+  let heldForAudio = false;
+
   const syncTime = () => {
-    if (syncAudio && Math.abs(audioEl.currentTime - videoEl.currentTime) > 0.3) audioEl.currentTime = videoEl.currentTime;
+    if (!syncAudio || videoEl.paused || videoEl.seeking || !audioReady()) return;
+    const d = drift();
+    const base = videoEl.playbackRate;
+    if (Math.abs(d) > 0.4) {
+      audioEl.currentTime = videoEl.currentTime; // too far off: one hard re-seek
+      audioEl.playbackRate = base;
+    } else if (Math.abs(d) > 0.06) {
+      audioEl.playbackRate = base * (d > 0 ? 0.97 : 1.03); // ease back in, inaudibly
+    } else if (audioEl.playbackRate !== base) {
+      audioEl.playbackRate = base;
+    }
   };
+  videoEl.addEventListener('seeking', () => {
+    // Fetch both streams in parallel from the start
+    if (syncAudio) audioEl.currentTime = videoEl.currentTime;
+  });
   videoEl.addEventListener('play', () => {
     if (!syncAudio) return;
-    audioEl.currentTime = videoEl.currentTime;
+    if (Math.abs(drift()) > 0.4) audioEl.currentTime = videoEl.currentTime;
     audioEl.play().catch(() => {});
   });
   videoEl.addEventListener('playing', () => {
     if (!syncAudio) return;
-    syncTime();
+    if (!audioReady()) {
+      // Picture is ready before the sound: hold the picture until the audio catches up
+      heldForAudio = true;
+      videoEl.pause();
+      return;
+    }
     audioEl.play().catch(() => {});
+  });
+  audioEl.addEventListener('canplay', () => {
+    if (!syncAudio || !heldForAudio) return;
+    heldForAudio = false;
+    if (Math.abs(drift()) > 0.4) audioEl.currentTime = videoEl.currentTime;
+    videoEl.play().catch(() => {});
   });
   for (const ev of ['pause', 'waiting', 'ended'] as const) {
     videoEl.addEventListener(ev, () => {
-      if (syncAudio) audioEl.pause();
+      if (!syncAudio) return;
+      if (ev === 'pause' && heldForAudio) return; // keep the audio loading
+      audioEl.pause();
     });
   }
   videoEl.addEventListener('seeked', () => {
-    if (syncAudio) audioEl.currentTime = videoEl.currentTime;
+    if (syncAudio && !audioEl.seeking && Math.abs(drift()) > 0.4) audioEl.currentTime = videoEl.currentTime;
   });
   videoEl.addEventListener('timeupdate', syncTime);
   videoEl.addEventListener('ratechange', () => (audioEl.playbackRate = videoEl.playbackRate));
 
   function clearAudioTrack() {
     syncAudio = false;
+    heldForAudio = false;
     audioEl.pause();
     audioEl.removeAttribute('src');
     audioEl.load();
@@ -268,7 +306,9 @@ export function setupPlayer() {
       qualitySelect.appendChild(opt);
     });
     // Start at the default quality (1080p) instead of the heaviest stream; higher is one click away
-    const cap = (await window.electronAPI.getSettings()).defaultVideoHeight || Infinity;
+    // Battery saver: start at 720p at most (less to decode); higher stays one click away
+    const userCap = (await window.electronAPI.getSettings()).defaultVideoHeight || Infinity;
+    const cap = isPowerSaver() ? Math.min(userCap, 720) : userCap;
     if (my !== token) return;
     const heightOf = (f: StreamFormatOption) => parseInt((f.resolution ?? '').split('x')[1] ?? '', 10) || 0;
     const startIdx = Math.max(0, formats.findIndex((f) => !f.isVideo || heightOf(f) <= cap));
@@ -423,7 +463,8 @@ export function setupPlayer() {
     const tab = (e as CustomEvent).detail as string;
     if (tab === 'watch') {
       onWatch = true;
-      releaseExternal();
+      // While the video sits in the picture-in-picture window its controls stay with it
+      if (document.pictureInPictureElement !== videoEl) releaseExternal();
       return;
     }
     backTo = tab;
@@ -438,6 +479,32 @@ export function setupPlayer() {
         // "Next" in the miniplayer plays what "Up next" lists, like YouTube
         onNext: relatedEntries[0] ? () => void doOpenStream(relatedEntries[0].url, hintOf(relatedEntries[0])) : undefined,
       });
+    }
+  });
+
+  // ── Picture-in-picture: its buttons (next, previous, seek) act on this video ──
+  // The PiP window's buttons come from the Media Session, which normally drives the player
+  // bar's own audio. Handing the video to the bar for as long as PiP is open routes them here:
+  // next = first "Up next" entry, previous = back to the start, seek = ±10 s.
+  videoEl.addEventListener('enterpictureinpicture', () => {
+    if (!cur) return;
+    adoptExternal(videoEl, { title: cur.title, artist: cur.artist, thumbnail: cur.thumbnail, isVideo: true }, {
+      audible,
+      onReturn: () => {
+        if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => {});
+        switchTab('watch');
+      },
+      onNext: relatedEntries[0] ? () => void doOpenStream(relatedEntries[0].url, hintOf(relatedEntries[0])) : undefined,
+    });
+  });
+  videoEl.addEventListener('leavepictureinpicture', () => {
+    // "Back to tab" (or closing PiP): show the app again, on the watch page
+    void window.electronAPI.focusWindow();
+    if (!page.classList.contains('active')) {
+      if (!videoEl.paused) switchTab('watch');
+      else releaseExternal();
+    } else {
+      releaseExternal();
     }
   });
 

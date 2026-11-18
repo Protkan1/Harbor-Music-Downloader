@@ -19,6 +19,8 @@ import { setupPreview, requestFromOption } from './preview';
 import { setupPlayerBar } from './playerbar';
 import { setupLibrary } from './library';
 import { runFirstSetup } from './setup';
+import { setupAppPanel } from './appupdate';
+import { setupPower } from './power';
 import { withViewTransition } from './transitions';
 
 // Application State
@@ -35,6 +37,8 @@ let currentSettings: AppSettings = {
   autoUpdateYtDlp: true,
   lastYtDlpCheck: 0,
   defaultVideoHeight: 1080,
+  autoUpdateApp: true,
+  powerSaver: 'battery',
 };
 
 let selectedFormat: DownloadFormat = 'mp3';
@@ -107,6 +111,9 @@ async function initApp() {
   setupHistory();
   setupMotion();
 
+  // Battery saver first, so the UI starts in the right mode
+  await setupPower();
+
   // Load Initial Settings
   currentSettings = await window.electronAPI.getSettings();
   applySettings(currentSettings);
@@ -121,6 +128,8 @@ async function initApp() {
 
   // First launch of a version: verify the bundled tools (blocking dialog) before anything else
   await runFirstSetup();
+  // Then Harbor's own update check (dialog + restart when a new version is out)
+  void setupAppPanel(currentSettings);
   checkDependencies();
   setupUpdates(currentSettings);
 
