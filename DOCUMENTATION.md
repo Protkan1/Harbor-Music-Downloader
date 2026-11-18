@@ -322,6 +322,12 @@ npm run dev
 
 ## 8. 📋 Yapılan İyileştirmeler ve Sürüm Geçmişi (Changelog)
 
+### Sürüm 2.14.0 (2026-11-18) - Güncelleme kurulurken ilerleme penceresi
+- **Sorun:** Uygulama içi güncelleme kurulumu sessiz çalışıyordu (`--updated /S --force-run`). ~30 sn boyunca hiçbir pencere yoktu; eski sürüm kaldırılırken exe ~9 sn yoktu ve masaüstü kısayolu "Problem with Shortcut" veriyordu, Harbor da ancak kurulum bitince açılıyordu.
+- **Çözüm (`build/installer.nsh`, electron-builder'ın NSIS betiğine otomatik eklenir):** Güncellemede `.onInit` içinde `SetSilent normal` + `SetAutoClose true`; yalnızca ilerleme sayfası, gerçek ilerleme çubuğuyla ve "Harbor güncelleniyor / Yeni sürüm kuruluyor. Bitince Harbor kendiliğinden açılacak." başlığıyla görünür. Kurulum modu, klasör ve bitiş sayfaları atlanır, İptal düğmesi pasif. Kurulum sonunda masaüstü ve Başlat kısayolları yeniden yazılır + `SHChangeNotify` (boş simge kalmaz), Harbor hemen başlatılır (`--updated`). İlk kurulum eskisi gibi.
+- Dil: Harbor `HARBOR_LANG` ortam değişkeniyle kendi arayüz dilini verir; eski sürümlerden gelen güncellemede `config.json`'daki `language`, o da yoksa Windows dili kullanılır.
+- Test: farklı appId'li bir deneme kurulumu (`HarborUpdTest`, saplama main) 1.0.0 → 1.0.1 electron-updater argümanlarıyla güncellendi: pencere ve çubuk göründü, metin sığdı, yeni sürüm kurulum bitiminde (~30 sn) açıldı, kısayol yeni exe'yi gösteriyor. Süre çoğunlukla 600 MB'lık paketin açılması.
+
 ### Sürüm 2.13.0 (2026-11-18) - Kullanılamayan şarkılar, Yenile açıklamayı doldurur
 - **Kullanılamayan şarkılar:** Spotify'ın burada çalmadığı şarkılar (çoğunlukla "bölgende kullanılamıyor") artık sessizce atlanmıyor. Motorun `spotify-list` çıktısında `skipped` listesi var: kapak, ad, sanatçı, albüm, süre, listedeki sıra (`pos`) ve neden (`region`/`local`/`episode`/`unavailable`). Embed yedeği de `isPlayable: false` parçaları aynı biçimde verir.
 - Liste sayfasında sarı bir bilgi alanı ("Spotify listesinde burada kullanılamayan N şarkı var...") ve **İncele** düğmesi. Açılan pencerede her şarkı kapağı ve meta verileriyle listelenir; **YouTube'da ara** ilk 5 sonucu getirir (süresi ±5 sn uyanlar "Süre uyuyor" ile işaretlenir, ▶ ile dinlenebilir), ya da YouTube linki yapıştırılır. **Ekle**, YouTube kopyasını şarkının Spotify'daki ad/sanatçı/süre/kapağıyla ve **listedeki kendi sırasına** koyar (`LibraryService.restoreSkipped` + `placeByPos`). **Yoksay** listeden düşürür. Eklenen/yoksayılanlar `skippedDone`'da tutulur, Yenile onları geri getirmez.

@@ -95,7 +95,10 @@ export class AppUpdateService {
     this.set({ state: 'installing', waitingForDownloads: false });
     // Test runs (HARBOR_UPDATE_DRYRUN) stop here: downloaded and verified, nothing installed
     if (process.env.HARBOR_UPDATE_DRYRUN) return;
-    // Let the dialog show "installing" for a moment, then: silent install, start again
-    setTimeout(() => autoUpdater.quitAndInstall(true, true), 1200);
+    // The installer shows its own progress window in Harbor's language (build/installer.nsh)
+    process.env.HARBOR_LANG = this.settings.getSettings().language === 'en' ? 'en' : 'tr';
+    // Let the dialog show "installing" for a moment, then: install (the installer turns its
+    // progress window on by itself), start again
+    setTimeout(() => autoUpdater.quitAndInstall(true, true), 800);
   }
 }
