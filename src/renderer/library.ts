@@ -4,11 +4,12 @@
  * used across the app.
  */
 import type { CatalogList, DownloadTaskRequest, LibraryItem, LibraryPlaylist } from '../shared/types';
-import { isSpotifyUrl } from '../shared/urls';
+import { isSpotifyUrl, sourceOf } from '../shared/urls';
 import { $, ICONS, el, formatDuration, formatHuman, iconButton, queueDownloads, switchTab, toast } from './dom';
 import { t } from './i18n';
 import { PlayItem, playQueue } from './playerbar';
 import { fadeIn } from './transitions';
+import { openPlaylistEditor } from './playlistEdit';
 
 const SOURCE_LABEL: Record<string, string> = {
   youtube: 'YouTube',
@@ -123,6 +124,81 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeMenu();
 });
 
+// ─────────────────────────────── Covers ───────────────────────────────
+
+function fillMosaic(c: HTMLElement, p: LibraryPlaylist) {
+  c.innerHTML = '';
+  c.classList.remove('mosaic');
+  const thumbs = [...new Set(p.items.map((i) => i.thumbnail).filter(Boolean))].slice(0, 4) as string[];
+  if (thumbs.length >= 4) c.classList.add('mosaic');
+  for (const src of thumbs.length >= 4 ? thumbs : thumbs.slice(0, 1)) {
+    const img = el('img');
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = src;
+    c.append(img);
+  }
+  if (!thumbs.length) c.innerHTML = ICONS.list; // static
+}
+
+/**
+ * A playlist's picture: the one the user chose, else the one it was imported with (a designed
+ * Spotify / YouTube / SoundCloud / Apple cover), else a mosaic of its first 4 tracks.
+ * @param override a picture to show instead (the edit dialog's preview); null = no own cover
+ */
+export function playlistCover(p: LibraryPlaylist, cls: string, override?: string | null): HTMLElement {
+  const c = el('span', cls);
+  const own = override === undefined ? p.customCover ?? p.cover : override === null ? p.cover : override;
+  if (!own) {
+    fillMosaic(c, p);
+    return c;
+  }
+  const img = el('img');
+  img.alt = '';
+  img.referrerPolicy = 'no-referrer';
+  img.src = own;
+  // A platform image that has gone away (or a deleted file) falls back to the mosaic
+  img.addEventListener('error', () => fillMosaic(c, p), { once: true });
+  c.append(img);
+  return c;
+}
+
+// ─────────────────────────────── Import progress ───────────────────────────────
+
+/** The bar under the import field: fills as tracks are read, full when the playlist is in. */
+function importProgress() {
+  const box = $('lib-progress');
+  const bar = box.querySelector<HTMLElement>('.lib-progress-bar')!;
+  const text = box.querySelector<HTMLElement>('.lib-progress-text')!;
+  let hideTimer: number | undefined;
+  return {
+    start(label: string) {
+      clearTimeout(hideTimer);
+      box.hidden = false;
+      box.classList.remove('done', 'failed');
+      box.classList.add('indeterminate');
+      bar.style.width = '';
+      text.textContent = label;
+    },
+    update(done: number, total: number | undefined, label: string) {
+      if (total && total > 0) {
+        box.classList.remove('indeterminate');
+        // The last few percent are for saving the playlist; the bar is full only when it's in
+        bar.style.width = `${Math.min(96, Math.max(3, (done / total) * 96))}%`;
+      }
+      text.textContent = label;
+    },
+    finish(ok: boolean, label = '') {
+      box.classList.remove('indeterminate');
+      box.classList.add(ok ? 'done' : 'failed');
+      if (ok) bar.style.width = '100%';
+      text.textContent = label;
+      hideTimer = window.setTimeout(() => (box.hidden = true), ok ? 2200 : 300);
+    },
+  };
+}
+
 // ─────────────────────────────── Library tab ───────────────────────────────
 
 export function setupLibrary() {
@@ -134,6 +210,9 @@ export function setupLibrary() {
   const importInput = $<HTMLInputElement>('lib-import-input');
   const importBtn = $<HTMLButtonElement>('lib-import-btn');
   let selectedId: string | null = null;
+  const bar = importProgress();
+  // Progress events come from both kinds of import; this says which one is running
+  let importingUrl = false;
 
   newForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -150,14 +229,21 @@ export function setupLibrary() {
     if (!url) return importInput.focus();
     importBtn.disabled = true;
     importBtn.textContent = t('libImporting');
+    const source = SOURCE_LABEL[sourceOf(url)] || '';
+    const reading = source ? t('libReadingList', { source }) : t('libImporting');
+    importingUrl = true;
+    bar.start(reading);
     const res = await window.electronAPI.libraryImport(url);
+    importingUrl = false;
     importBtn.disabled = false;
     importBtn.textContent = t('libImport');
     if (res.success && res.playlist) {
       importInput.value = '';
       selectedId = res.playlist.id;
+      bar.finish(true, t('libImportDone', { n: res.playlist.items.length }));
       toast(t('libImported', { name: res.playlist.name, n: res.playlist.items.length }));
     } else {
+      bar.finish(false);
       toast(res.error ? `${t('libImportFailed')}: ${res.error}` : t('libImportFailed'));
     }
   });
@@ -183,21 +269,7 @@ export function setupLibrary() {
     renderDetail(playlists.find((p) => p.id === selectedId) ?? null);
   }
 
-  function cover(p: LibraryPlaylist, cls: string): HTMLElement {
-    const c = el('span', cls);
-    const thumbs = [...new Set(p.items.map((i) => i.thumbnail).filter(Boolean))].slice(0, 4) as string[];
-    if (thumbs.length >= 4) c.classList.add('mosaic');
-    for (const src of thumbs.length >= 4 ? thumbs : thumbs.slice(0, 1)) {
-      const img = el('img');
-      img.alt = '';
-      img.loading = 'lazy';
-      img.referrerPolicy = 'no-referrer';
-      img.src = src;
-      c.append(img);
-    }
-    if (!thumbs.length) c.innerHTML = ICONS.list; // static
-    return c;
-  }
+  const cover = (p: LibraryPlaylist, cls: string) => playlistCover(p, cls);
 
   let detailId: string | null | undefined;
   function renderDetail(p: LibraryPlaylist | null) {
@@ -213,13 +285,22 @@ export function setupLibrary() {
     }
     const total = p.items.reduce((s, i) => s + (i.duration ?? 0), 0);
     const head = el('div', 'lib-head');
-    head.append(cover(p, 'lib-cover'));
+    // The cover opens the edit dialog (a pencil shows on hover)
+    const coverBtn = el('button', 'lib-cover-btn');
+    coverBtn.type = 'button';
+    coverBtn.title = t('libCoverChange');
+    coverBtn.setAttribute('aria-label', t('libCoverChange'));
+    const pencil = el('span', 'lib-cover-edit');
+    pencil.innerHTML = ICONS.edit; // static
+    coverBtn.append(cover(p, 'lib-cover'), pencil);
+    coverBtn.addEventListener('click', () => openPlaylistEditor(p));
+    head.append(coverBtn);
     const info = el('div', 'lib-head-info');
-    info.append(
-      el('span', 'lp-source', originLabel(p) || t('libTitle')),
-      el('h3', 'lib-name', p.name),
-      el('span', 'lib-meta', [t('libItems', { n: p.items.length }), total ? formatHuman(total) : ''].filter(Boolean).join(' · '))
-    );
+    const nameEl = el('h3', 'lib-name', p.name);
+    nameEl.addEventListener('dblclick', () => startRename(nameEl, p));
+    info.append(el('span', 'lp-source', originLabel(p) || t('libTitle')), nameEl);
+    if (p.description) info.append(el('p', 'lib-desc', p.description));
+    info.append(el('span', 'lib-meta', [t('libItems', { n: p.items.length }), total ? formatHuman(total) : ''].filter(Boolean).join(' · ')));
     const actions = el('div', 'lib-actions');
     const play = iconButton('modal-btn-primary', ICONS.play, t('libPlay'), t('libPlay'));
     const shuffleBtn = iconButton('btn-browse', ICONS.shuffle, t('libShuffle'), t('libShuffle'));
@@ -243,8 +324,8 @@ export function setupLibrary() {
       });
       actions.append(sync);
     }
-    const rename = iconButton('history-btn', ICONS.edit, t('libRename'));
-    rename.addEventListener('click', () => startRename(info.querySelector('.lib-name') as HTMLElement, p));
+    const rename = iconButton('btn-browse', ICONS.edit, t('libEdit'), t('libEdit'));
+    rename.addEventListener('click', () => openPlaylistEditor(p));
     const del = iconButton('history-btn danger', ICONS.trash, t('libDelete'));
     del.addEventListener('click', async () => {
       if (confirm(t('libDeleteConfirm', { name: p.name }))) await window.electronAPI.libraryDelete(p.id);
@@ -335,28 +416,40 @@ export function setupLibrary() {
   }
 
   // ── Local music: a playlist file exported from Apple Music / iTunes / any player, or a folder ──
-  const localStatus = $('lib-local-status');
   const localButtons = [$<HTMLButtonElement>('lib-local-file'), $<HTMLButtonElement>('lib-local-folder')];
+  let importingLocal = false;
+  let localStarted = false;
   window.electronAPI.onLibraryImportProgress(({ done, total }) => {
-    localStatus.hidden = false;
-    localStatus.textContent = t('libScanning', { done, total });
+    if (importingUrl) {
+      bar.update(done, total, total ? t('libReadingCount', { done, total }) : t('libReadingSome', { done }));
+    } else if (importingLocal) {
+      // Starts with the first progress event, so nothing shows while the file picker is open
+      if (!localStarted) bar.start(t('libImporting'));
+      localStarted = true;
+      bar.update(done, total, t('libScanning', { done, total: total ?? '?' }));
+    }
   });
   const importLocal = async (kind: 'file' | 'folder') => {
     localButtons.forEach((b) => (b.disabled = true));
-    localStatus.hidden = false;
-    localStatus.textContent = t('libImporting');
+    importingLocal = true;
+    localStarted = false;
     const res = await window.electronAPI.libraryImportLocal(kind);
+    importingLocal = false;
     localButtons.forEach((b) => (b.disabled = false));
-    localStatus.hidden = true;
     if (res.canceled) return;
     if (res.success && res.playlist) {
+      if (!localStarted) bar.start(t('libImporting'));
+      bar.finish(true, t('libImportDone', { n: res.playlist.items.length }));
       selectedId = res.playlist.id;
       toast(
         res.missing
           ? t('libLocalImportedMissing', { name: res.playlist.name, n: res.playlist.items.length, m: res.missing })
           : t('libImported', { name: res.playlist.name, n: res.playlist.items.length })
       );
-    } else toast(res.error ? `${t('libImportFailed')}: ${res.error}` : t('libImportFailed'));
+    } else {
+      if (localStarted) bar.finish(false);
+      toast(res.error ? `${t('libImportFailed')}: ${res.error}` : t('libImportFailed'));
+    }
   };
   localButtons[0].addEventListener('click', () => importLocal('file'));
   localButtons[1].addEventListener('click', () => importLocal('folder'));

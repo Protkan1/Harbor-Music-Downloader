@@ -26,8 +26,12 @@ const api: ElectronAPI = {
   libraryImport: (url: string) => ipcRenderer.invoke('library:import', url),
   librarySync: (id: string) => ipcRenderer.invoke('library:sync', id),
   libraryImportLocal: (kind: 'file' | 'folder') => ipcRenderer.invoke('library:importLocal', kind),
-  onLibraryImportProgress: (callback: (p: { done: number; total: number }) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, p: { done: number; total: number }) => callback(p);
+  libraryUpdate: (id: string, patch: { name?: string; description?: string }) => ipcRenderer.invoke('library:update', id, patch),
+  libraryPickCover: () => ipcRenderer.invoke('library:pickCover'),
+  librarySetCover: (id: string, jpeg: Uint8Array) => ipcRenderer.invoke('library:setCover', id, jpeg),
+  libraryClearCover: (id: string) => ipcRenderer.invoke('library:clearCover', id),
+  onLibraryImportProgress: (callback: (p: { done: number; total?: number }) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, p: { done: number; total?: number }) => callback(p);
     ipcRenderer.on('library:importProgress', handler);
     return () => {
       ipcRenderer.removeListener('library:importProgress', handler);

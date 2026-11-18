@@ -2,12 +2,13 @@
 harbor-engine spotify-list <playlist|album URL or ID>
 
 Prints one JSON object with the complete track list of a public Spotify playlist or album:
-    {"kind", "title", "cover", "total", "tracks": [{"id", "title", "artist", "duration", "cover"}]}
+    {"kind", "title", "cover", "description", "total", "tracks": [{"id", "title", "artist", "duration", "cover"}]}
 
 Spotify's embed page (what the app used before) stops at 100 tracks and has no per-track art.
 spotapi reads the web player's own API page by page, so a 1250-track playlist comes back whole,
 each track with its album cover. Progress goes to stderr as "__PROGRESS__ done total".
 """
+import html
 import json
 import re
 import sys
@@ -33,6 +34,14 @@ def _track_id(uri):
     return uri.split(':')[-1] if isinstance(uri, str) and uri.startswith('spotify:track:') else None
 
 
+def _text(raw, limit=1000):
+    """Spotify descriptions are HTML ("<a href=...>", "&amp;"); keep plain text."""
+    if not isinstance(raw, str):
+        return None
+    text = html.unescape(re.sub(r'<[^>]+>', '', raw)).strip()
+    return text[:limit] or None
+
+
 def _progress(done, total):
     print(f'__PROGRESS__ {done} {total}', file=sys.stderr, flush=True)
 
@@ -43,7 +52,8 @@ def playlist(pid):
     info = pl.get_playlist_info(limit=1)['data']['playlistV2']
     total = (info.get('content') or {}).get('totalCount') or 0
     images = (info.get('images') or {}).get('items') or []
-    cover = _best(images[0].get('sources')) if images else None
+    cover = _best(images[0].get('sources'), prefer=640) if images else None
+    _progress(0, total)  # the size is known before the first page: the bar can start filling
     tracks = []
     for page in pl.paginate_playlist():
         for it in page.get('items') or []:
@@ -60,7 +70,8 @@ def playlist(pid):
                 'cover': _best((album.get('coverArt') or {}).get('sources')) or cover,
             })
         _progress(len(tracks), total)
-    return {'kind': 'playlist', 'title': info.get('name') or 'Spotify', 'cover': cover, 'total': total, 'tracks': tracks}
+    return {'kind': 'playlist', 'title': info.get('name') or 'Spotify', 'cover': cover,
+            'description': _text(info.get('description')), 'total': total, 'tracks': tracks}
 
 
 def album(aid):
@@ -69,6 +80,7 @@ def album(aid):
     info = al.get_album_info()['data']['albumUnion']
     cover = _best((info.get('coverArt') or {}).get('sources'))
     total = ((info.get('tracksV2') or {}).get('totalCount')) or 0
+    _progress(0, total)
     tracks = []
     for page in al.paginate_album():
         for it in page or []:

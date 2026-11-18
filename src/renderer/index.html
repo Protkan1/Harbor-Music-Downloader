@@ -422,6 +422,10 @@
               data-i18n-placeholder="libImportPlaceholder" />
             <button id="lib-import-btn" class="btn-paste" type="submit" data-i18n="libImport">İçe Aktar</button>
           </form>
+          <div id="lib-progress" class="lib-progress" hidden>
+            <div class="lib-progress-track"><div class="lib-progress-bar"></div></div>
+            <span class="lib-progress-text" role="status" aria-live="polite"></span>
+          </div>
           <div class="lib-layout">
             <div class="lib-side">
               <form id="lib-new-form" class="lib-new">
@@ -435,7 +439,6 @@
                   <button id="lib-local-file" class="btn-browse" type="button" data-i18n="libLocalFile" data-i18n-title="libLocalFileHint">Dosyadan</button>
                   <button id="lib-local-folder" class="btn-browse" type="button" data-i18n="libLocalFolder">Klasörden</button>
                 </div>
-                <p id="lib-local-status" class="lib-local-status" hidden></p>
               </div>
               <div id="lib-list" class="lib-list"></div>
             </div>

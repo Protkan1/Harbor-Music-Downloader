@@ -185,6 +185,38 @@ async function findOnPath(name: string): Promise<string | null> {
  * Runs yt-dlp with the given args (expects -J / --dump-single-json) and parses stdout.
  * Never rejects; on failure `error` holds yt-dlp's last "ERROR:" line.
  */
+/**
+ * Runs yt-dlp and hands over stdout line by line as it arrives (`--print` output), so long
+ * listings can report progress. Resolves when yt-dlp exits; `error` is its ERROR: line.
+ */
+export function runYtDlpLines(args: string[], onLine: (line: string) => void, timeoutMs = 5 * 60 * 1000): Promise<{ code: number | null; error?: string }> {
+  return new Promise((resolve) => {
+    let proc: ChildProcess;
+    try {
+      const yt = ytdlpCommand();
+      proc = spawn(yt.cmd, [...yt.prefix, ...args], { shell: false, windowsHide: true, env: UTF8_ENV });
+    } catch (err: any) {
+      resolve({ code: null, error: err?.message });
+      return;
+    }
+    let stderr = '';
+    const timer = setTimeout(() => killTree(proc), timeoutMs);
+    readLines(proc.stdout!, onLine);
+    proc.stderr!.on('data', (d: Buffer) => {
+      if (stderr.length < 20000) stderr += d.toString('utf8');
+    });
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      resolve({ code: null, error: err.message });
+    });
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      const errLine = stderr.split(/\r?\n/).find((l) => l.startsWith('ERROR:'))?.replace(/^ERROR:\s*/, '');
+      resolve({ code, error: errLine });
+    });
+  });
+}
+
 export function runYtDlpJson(args: string[], timeoutMs = 90000): Promise<{ json: any | null; error?: string }> {
   return new Promise((resolve) => {
     let proc: ChildProcess;

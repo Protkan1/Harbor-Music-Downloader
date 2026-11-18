@@ -203,6 +203,11 @@ export interface LibraryPlaylist {
   name: string;
   /** Imported playlists remember where they came from so they can be refreshed. */
   origin?: { source: MediaSource | 'local'; url: string; kind?: 'file' | 'folder' };
+  /** Artwork from the platform the list was imported from (refreshed on sync). */
+  cover?: string;
+  /** Picture the user chose (a file: URL in <userData>/covers); wins over `cover`. */
+  customCover?: string;
+  description?: string;
   items: LibraryItem[];
   createdAt: number;
   updatedAt: number;
@@ -227,6 +232,13 @@ export interface CatalogList {
   kind: 'playlist' | 'album' | 'search';
   title: string;
   thumbnail?: string;
+  /**
+   * The list's own artwork, only when someone designed one (a Spotify playlist image, a custom
+   * YouTube playlist thumbnail, an album cover). Undefined when the platform would just show
+   * its first track or an automatic collage; the app then draws its own 4-track mosaic.
+   */
+  cover?: string;
+  description?: string;
   entries: CatalogEntry[];
   /** Total items in the source list when more exist than were returned. */
   totalCount?: number;
@@ -320,7 +332,15 @@ export interface ElectronAPI {
   librarySync: (id: string) => Promise<{ success: boolean; added?: number; error?: string }>;
   /** Pick a playlist file (M3U/M3U8/PLS/XML/TXT) or a folder and import its local songs. */
   libraryImportLocal: (kind: 'file' | 'folder') => Promise<{ success: boolean; canceled?: boolean; playlist?: LibraryPlaylist; missing?: number; error?: string }>;
-  onLibraryImportProgress: (callback: (p: { done: number; total: number }) => void) => () => void;
+  /** Name and description from the playlist's edit dialog. */
+  libraryUpdate: (id: string, patch: { name?: string; description?: string }) => Promise<void>;
+  /** Opens a picture for a cover: its bytes (any format; unusual ones arrive as PNG). */
+  libraryPickCover: () => Promise<{ data?: Uint8Array; mime?: string; error?: 'tooLarge' | 'unreadable'; canceled?: boolean }>;
+  /** Saves the square JPEG the renderer cropped as the playlist's own cover. */
+  librarySetCover: (id: string, jpeg: Uint8Array) => Promise<boolean>;
+  libraryClearCover: (id: string) => Promise<void>;
+  /** Import progress: tracks read so far, and the list's size when known. */
+  onLibraryImportProgress: (callback: (p: { done: number; total?: number }) => void) => () => void;
   onLibraryChanged: (callback: () => void) => () => void;
   getAppUpdateStatus: () => Promise<AppUpdateStatus>;
   checkAppUpdate: () => Promise<AppUpdateStatus>;

@@ -13,6 +13,7 @@ import { SetupService } from './services/SetupService';
 import { AppUpdateService } from './services/AppUpdateService';
 import { PowerService } from './services/PowerService';
 import { SubtitleService } from './services/SubtitleService';
+import { BROWSER_IMAGES, FFMPEG_IMAGES, readCoverImage } from './services/coverImage';
 
 const subtitleService = new SubtitleService();
 import { DownloadTaskRequest, AppSettings, MediaMeta } from '../shared/types';
@@ -158,9 +159,45 @@ export function registerIpcHandlers(
   ipcMain.handle('library:delete', async (_, id: unknown) => libraryService.remove(str(id)));
   ipcMain.handle('library:addItems', async (_, id: unknown, items: unknown) => libraryService.addItems(str(id), arr(items)));
   ipcMain.handle('library:removeItem', async (_, id: unknown, itemId: unknown) => libraryService.removeItem(str(id), str(itemId)));
-  ipcMain.handle('library:import', async (_, url: unknown) =>
-    isNonEmptyString(url) ? libraryService.importFrom(url.trim()) : { success: false }
+  ipcMain.handle('library:import', async (event, url: unknown) => {
+    if (!isNonEmptyString(url)) return { success: false };
+    let last = 0;
+    return libraryService.importFrom(url.trim(), (done, total) => {
+      // At most ~10 updates a second; the final count always goes out
+      const now = Date.now();
+      if (now - last < 100 && done !== total) return;
+      last = now;
+      if (!event.sender.isDestroyed()) event.sender.send('library:importProgress', { done, total });
+    });
+  });
+  ipcMain.handle('library:update', async (_, id: unknown, patch: unknown) => {
+    const p = (patch && typeof patch === 'object' ? patch : {}) as Record<string, unknown>;
+    libraryService.update(str(id), {
+      name: typeof p.name === 'string' ? p.name : undefined,
+      description: typeof p.description === 'string' ? p.description : undefined,
+    });
+  });
+  ipcMain.handle('library:setCover', async (_, id: unknown, data: unknown) =>
+    data instanceof Uint8Array ? libraryService.setCustomCover(str(id), Buffer.from(data)) : false
   );
+  ipcMain.handle('library:clearCover', async (_, id: unknown) => libraryService.clearCustomCover(str(id)));
+  // Picks a picture for a playlist cover. Formats Chromium can't draw (TIFF, HEIC, ...) are
+  // turned into PNG with the bundled ffmpeg first; the renderer then crops it to a square.
+  ipcMain.handle('library:pickCover', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const en = settingsService.getSettings().language === 'en';
+    const options: Electron.OpenDialogOptions = {
+      properties: ['openFile'],
+      title: en ? 'Choose a cover picture' : 'Kapak resmi seçin',
+      filters: [
+        { name: en ? 'Pictures' : 'Resimler', extensions: [...BROWSER_IMAGES, ...FFMPEG_IMAGES] },
+        { name: en ? 'All files' : 'Tüm dosyalar', extensions: ['*'] },
+      ],
+    };
+    const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    if (res.canceled || !res.filePaths[0]) return { canceled: true };
+    return readCoverImage(res.filePaths[0]);
+  });
   ipcMain.handle('library:sync', async (_, id: unknown) => libraryService.sync(str(id)));
   ipcMain.handle('library:importLocal', async (event, kind: unknown) => {
     const folder = kind === 'folder';

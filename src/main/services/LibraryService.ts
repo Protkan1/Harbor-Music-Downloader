@@ -1,12 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { pathToFileURL, fileURLToPath } from 'url';
 import { app } from 'electron';
 import { CatalogEntry, LibraryItem, LibraryPlaylist } from '../../shared/types';
 import { sourceOf } from '../../shared/urls';
-import { CatalogService } from './CatalogService';
+import { CatalogService, ImportProgress } from './CatalogService';
 import { LocalSource, parsePlaylistFile, scanFolder, toLibraryItems } from './LocalImport';
 
 const MAX_ITEMS = 5000;
+
+/** Only https images from the platform are kept as a playlist cover. */
+const safeCover = (url?: string) => (url && /^https:\/\//i.test(url) && url.length <= 2000 ? url : undefined);
 
 const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -64,7 +68,67 @@ export class LibraryService {
     this.persist();
   }
 
+  /** Name and description from the edit dialog (the cover has its own calls). */
+  public update(id: string, patch: { name?: string; description?: string }) {
+    const p = this.find(id);
+    if (!p) return;
+    if (typeof patch.name === 'string' && patch.name.trim()) p.name = patch.name.trim().slice(0, 120);
+    if (typeof patch.description === 'string') {
+      const d = patch.description.replace(/\r\n?/g, '\n').trim().slice(0, 1000);
+      p.description = d || undefined;
+    }
+    p.updatedAt = Date.now();
+    this.persist();
+  }
+
+  /**
+   * The user's own picture for a playlist. The renderer has already cropped it to a square
+   * JPEG (any format Chromium or ffmpeg can open goes in); here it is only checked and saved.
+   */
+  public setCustomCover(id: string, jpeg: Buffer): boolean {
+    const p = this.find(id);
+    if (!p || jpeg.length < 100 || jpeg.length > 8 * 1024 * 1024) return false;
+    if (jpeg[0] !== 0xff || jpeg[1] !== 0xd8 || jpeg[2] !== 0xff) return false;
+    try {
+      fs.mkdirSync(this.coversDir, { recursive: true });
+      // A new name each time, so the <img> doesn't show the old picture from its cache
+      const file = path.join(this.coversDir, `playlist_${p.id}_${Date.now().toString(36)}.jpg`);
+      fs.writeFileSync(file, jpeg);
+      this.deleteCustomCover(p);
+      p.customCover = pathToFileURL(file).href;
+    } catch (err) {
+      console.error('[LibraryService] Failed to save cover:', err);
+      return false;
+    }
+    p.updatedAt = Date.now();
+    this.persist();
+    return true;
+  }
+
+  /** Back to the platform's cover, or the 4-track mosaic. */
+  public clearCustomCover(id: string) {
+    const p = this.find(id);
+    if (!p?.customCover) return;
+    this.deleteCustomCover(p);
+    p.updatedAt = Date.now();
+    this.persist();
+  }
+
+  private deleteCustomCover(p: LibraryPlaylist) {
+    if (!p.customCover) return;
+    try {
+      const file = fileURLToPath(p.customCover);
+      // Only ever delete our own files
+      if (path.dirname(path.resolve(file)).toLowerCase() === path.resolve(this.coversDir).toLowerCase()) fs.rmSync(file, { force: true });
+    } catch {
+      /* already gone */
+    }
+    p.customCover = undefined;
+  }
+
   public remove(id: string) {
+    const gone = this.find(id);
+    if (gone) this.deleteCustomCover(gone);
     this.playlists = this.playlists.filter((p) => p.id !== id);
     this.persist();
   }
@@ -98,12 +162,17 @@ export class LibraryService {
     this.persist();
   }
 
-  public async importFrom(url: string): Promise<{ success: boolean; playlist?: LibraryPlaylist; error?: string }> {
-    const res = await this.catalog.getPlaylist(url, true);
+  public async importFrom(
+    url: string,
+    onProgress: ImportProgress = () => {}
+  ): Promise<{ success: boolean; playlist?: LibraryPlaylist; error?: string }> {
+    const res = await this.catalog.getPlaylist(url, true, onProgress);
     if (!res.success || !res.data) return { success: false, error: res.error ?? res.errorCode };
     const list = res.data;
     const playlist = this.create(list.title, list.entries.map((e) => this.fromEntry(e, list.source)));
     playlist.origin = { source: list.source, url };
+    playlist.cover = safeCover(list.cover);
+    playlist.description = list.description;
     this.persist();
     return { success: true, playlist: this.list().find((p) => p.id === playlist.id) };
   }
@@ -149,6 +218,12 @@ export class LibraryService {
     }
     const res = await this.catalog.getPlaylist(p.origin.url, true);
     if (!res.success || !res.data) return { success: false, error: res.error ?? res.errorCode };
+    // The platform's picture may have changed (a custom one the user picked here still wins)
+    const cover = safeCover(res.data.cover);
+    if (cover !== p.cover) {
+      p.cover = cover;
+      this.persist();
+    }
     const added = this.addItems(id, res.data.entries.map((e) => this.fromEntry(e, res.data!.source)));
     return { success: true, added };
   }

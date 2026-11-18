@@ -28,7 +28,7 @@ Harbor is a front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [spotDL
 - **Watch and listen without downloading.** A YouTube-style watch page with suggestions, subtitles (including auto-translated ones), playback speed and dubbed audio tracks. A Spotify-style player bar keeps playing while you browse.
 - **Smart queue.** Starting a single song fills the queue with similar songs (radio), instead of more copies of the same search.
 - **Explore without an account.** Turkey and global top 100, new releases and genre lists, plus search.
-- **Your own library.** Create playlists that mix music and video, import playlists from YouTube, Spotify, SoundCloud or Apple Music, or bring in local music from M3U/M3U8/PLS files, iTunes XML or a folder.
+- **Your own library.** Create playlists that mix music and video, import playlists from YouTube, Spotify, SoundCloud or Apple Music, or bring in local music from M3U/M3U8/PLS files, iTunes XML or a folder. Imported playlists keep their own cover and description from the platform, and a progress bar shows how far a long import has got. Give any playlist your own cover picture (PNG, JPEG, WebP, HEIC and more) and a description.
 - **History.** Every download with its cover, length and source; re-download or open its folder in one click.
 - **Keeps itself up to date.** Harbor checks for a new version on start, installs it and restarts by itself; no trips to GitHub for a new installer. yt-dlp is updated in the background too, since sites change often.
 - **Battery saver.** On battery (or always) it turns off blur effects and animations, starts videos at 720p with hardware-decoded H.264 and runs one download at a time. On the Midnight theme, idle CPU drops from 75% of a core to 0.5%.

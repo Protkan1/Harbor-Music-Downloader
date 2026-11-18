@@ -217,7 +217,10 @@ Windows Dosya Gezgini / Media Player'da kapak görünmesi için her MP3 indirild
 ### 4.17. Kitaplık (`LibraryService`, `library.ts`)
 - Kendi çalma listelerin (müzik + video, yerel dosya + link karışık). "Listeye ekle" (＋) menüsü: Keşfet kartları, Geçmiş satırları, önizleme kartı, izleme sayfası.
 - **İçe aktarma** (hesapsız): YouTube (yt-dlp flat), Spotify (embed JSON), **SoundCloud** (yt-dlp flat + oEmbed ile 8 paralel başlık; tam çözüm 45 sn sürüyordu), **Apple Music** (sayfadaki `serialized-server-data`; parçalar `ytsearch1:Sanatçı - Şarkı` olarak çalınır/indirilir). İçe aktarılan liste kaynağını hatırlar, **Yenile** yeni parçaları ekler.
-- Liste: Çal, Karıştır, İndir (≥50 parçada onay, liste adıyla alt klasör), yeniden adlandır (satır içi; Electron `prompt()` desteklemez), sil, parça çıkar. Kalıcı: `library.json` (atomik yazma).
+- Liste: Çal, Karıştır, İndir (≥50 parçada onay, liste adıyla alt klasör), **Düzenle** (ad, açıklama, kapak; ada çift tıklayınca satır içi yeniden adlandırma da çalışır), sil, parça çıkar. Kalıcı: `library.json` (atomik yazma).
+- **Kapak sırası:** kullanıcının seçtiği resim (`customCover`, `<userData>/covers/playlist_<id>_<zaman>.jpg`) → platformun tasarlanmış kapağı (`cover`) → ilk 4 parçanın mozaiği. Platform kapağı yalnızca "gerçek" kapaksa alınır: Spotify'ın otomatik kolajı (`mosaic.scdn.co`) ve YouTube'un ilk video küçük resmi (`i.ytimg.com/vi/...`) sayılmaz; SoundCloud setinde resim yoksa yt-dlp küçük resim vermez. Yüklenemeyen kapak mozaiğe düşer. **Yenile**, platform kapağını günceller; kullanıcının kapağına dokunmaz.
+- **Kapak seçme** (`coverImage.ts`, `playlistEdit.ts`): dosyanın türü uzantıdan değil baytlardan anlaşılır (iPhone'un ".jpg"si çoğu zaman HEIC'tir). Chromium'un açtığı türler (PNG, JPEG, WebP, AVIF, GIF, BMP, ICO, SVG) doğrudan, diğerleri (HEIC/HEIF, TIFF, TGA, JXL, PSD, ...) paketli ffmpeg ile PNG'ye çevrilip arayüze gelir. Arayüz EXIF yönünü uygulayıp 640 px kare JPEG'e kırpar; ana süreç yalnızca JPEG imzasını ve boyutunu (≤8 MB) denetleyip kaydeder. En fazla 60 MB giriş.
+- **İçe aktarma ilerlemesi:** `CatalogService.getPlaylist(url, fresh, onProgress)`. Spotify: motorun `__PROGRESS__ okunan toplam` satırları (343'lük sayfalar). YouTube: `-J` yerine `--print` ile her video için bir satır (`video:` + `playlist:` şablonları), böylece sayfa sayfa ilerleme ve listenin toplamı (`playlist_count`) gelir. SoundCloud: oEmbed adımında okunan/toplam. Apple Music: tek istek (belirsiz çubuk). Çubuk okuma sırasında en fazla %96'ya dolar, liste kaydedilince %100 olur; yerel içe aktarma da aynı çubuğu kullanır.
 
 ### 4.19. Akıllı Çalma Sırası (Radyo)
 - Tek bir şarkı kendi başına açıldığında (Keşfet **arama** sonucu, önizleme "Dinle", izleme sayfası "Dinle") sıra, tıklanan listenin geri kalanı değil, o şarkının **YouTube Mix**'i olur (Spotify / YouTube Music radyosu gibi). Keşfet **listeleri** (Top 100) sırayla çalar.
@@ -318,6 +321,12 @@ npm run dev
 ---
 
 ## 8. 📋 Yapılan İyileştirmeler ve Sürüm Geçmişi (Changelog)
+
+### Sürüm 2.12.0 (2026-11-18) - Kapak ve açıklama düzenleme, içe aktarma ilerleme çubuğu
+- **İçe aktarma ilerleme çubuğu:** Kitaplık'ta link içe aktarılırken alan altında dolan bir çubuk ve "343 / 596 parça okundu" yazısı; toplam bilinmiyorsa kayan çubuk. Çubuk dolunca işlem bitmiştir ("Tamamlandı · N parça"). Yerel içe aktarma da aynı çubuğu kullanır.
+- **Liste düzenleme penceresi:** ad, açıklama (en fazla 1000 karakter) ve kapak resmi. Kapak; PNG, JPEG, WebP, AVIF, GIF, BMP, ICO, SVG ve ffmpeg üzerinden HEIC/HEIF, TIFF ve diğerleri. Kapağa tıklayınca da açılır. "Kapağı kaldır" platform kapağına ya da mozaiğe döndürür.
+- **Platform kapağı ve açıklaması:** içe aktarılan Spotify, YouTube, SoundCloud ve Apple Music listeleri, varsa kendi tasarlanmış kapaklarıyla ve açıklamalarıyla gelir; kapak yoksa 4 parçalık mozaik kalır. Motorun `spotify-list` çıktısına `description` eklendi ve liste kapağı 640 px'e en yakın boyutla alınır.
+- `runYtDlpLines` (satır satır yt-dlp çıktısı), `coverImage.ts` (tür tespiti + ffmpeg dönüşümü), `playlistEdit.ts` (düzenleme penceresi).
 
 ### Sürüm 2.11.0 (2026-11-18) - Otomatik güncelleme, pil tasarrufu, tam playlist içe aktarma
 - **Uygulama içi otomatik güncelleme** (`AppUpdateService`, `electron-updater` 6.8.11, `src/renderer/appupdate.ts`): açılışta (ilk açılış ekranından sonra) GitHub Releases'teki `latest.yml` okunur; yeni sürüm varsa kapatılamayan "Harbor güncelleniyor" penceresi ilerleme çubuğuyla açılır, kurulum dosyası indirilip SHA-512 ile doğrulanır, sessizce kurulur ve uygulama yeniden başlar. İndirme sürüyorsa kurulum indirmeler bitene kadar bekler (en fazla 10 dk). Ayarlar → Uygulama: sürüm, "Denetle", "Otomatik güncelle" (varsayılan açık). Test için `HARBOR_UPDATE_URL` (yerel generic besleme) ve `HARBOR_UPDATE_DRYRUN` (kurmadan dur); yerel beslemeyle indirme+doğrulama test edildi. 2.10.0 kurulu olanlar 2.11.0'ı bir kez elle kurmalı (2.10.0'da güncelleyici yok).
